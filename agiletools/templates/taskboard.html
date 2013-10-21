@@ -1,0 +1,59 @@
+<!DOCTYPE html
+    PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:xi="http://www.w3.org/2001/XInclude"
+      xmlns:py="http://genshi.edgewall.org/">
+  <xi:include href="layout.html" /> 
+  <head>
+    <title>Taskboard</title>
+  </head>
+
+  <body>
+    <div id="content" class="taskboard">
+      <h1>Taskboard</h1>
+      <form action="" method="GET" id="taskboard-query" class="inline-block block-phone">
+        <input id="tb-milestones-select" type="hidden" 
+               name="milestone" value="${current_milestone}" />
+        <select name="group">
+          <option py:for="field in group_by_fields" value="${field.name}"
+                  selected="${field.name == cur_group and 'selected' or None}">
+            ${field.label}
+          </option>
+        </select>
+      </form>
+      <div id="taskboard-controls" class="hidden inline-block">
+        <div py:if="cur_group == 'status'"
+             id="btn-change-workflow" class="btn btn-primary tooltipped" title="Change workflow">
+          <i class="icon-random"></i>
+        </div>
+        <div id="btn-groups-filter" class="btn tooltipped" title="Filter groups">
+          <i class="icon-eye-open"></i>
+        </div>
+        <div id="btn-switch-view" class="btn tooltipped" title="Switch view">
+          <i class="icon-th-large"></i>
+        </div>
+        <div id="btn-fullscreen" class="btn tooltipped" title="Toggle fullscreen">
+          <i class="icon-fullscreen"></i>
+        </div>
+        <div id="popover-elements" class="hidden">
+          <div id="popover-groups">
+            <a id="set-groups-clear">
+              <i class="icon-remove"></i> Remove all
+            </a>
+            <select id="set-groups-select" multiple="multiple"></select>
+          </div>
+          <div py:if="cur_group == 'status'" id="popover-workflows">
+            <select class="full-width">
+            </select>
+          </div>
+        </div>
+      </div>
+      <div py:if="milestone_not_found" class="box-info">
+        <i class="icon-info-sign"></i>
+        The specified milestone could not be found. Showing the current milestone instead.
+      </div>
+      <div id="taskboard-container"></div>
+    </div>
+  </body>
+</html>
