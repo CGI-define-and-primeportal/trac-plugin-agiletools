@@ -89,10 +89,7 @@ class TaskboardModule(Component):
                     constr['changetime'] = [from_iso + ".." + to_iso]
 
             # Get all tickets by milestone
-            query = Query(self.env,
-                          constraints=constr,
-                          positioning=group_by,
-                          max=300)
+            query = Query(self.env, constraints=constr, max=300)
 
             r = query.execute(req)
 
