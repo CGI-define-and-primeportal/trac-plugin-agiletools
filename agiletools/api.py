@@ -72,8 +72,6 @@ class AgileToolsSystem(Component):
         @self.env.with_transaction()
         def do_insert_before(db):
 
-            tst = ticket == 4 and before_ticket == 3
-
             cursor = db.cursor()
             cursor.execute("""
                             SELECT position FROM ticket_positions
