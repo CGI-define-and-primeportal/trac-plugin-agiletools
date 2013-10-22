@@ -11,7 +11,7 @@ def do_upgrade(env, ver, cursor):
         Column('ticket', type='int'),
         Column('position', type='int'),
         Index(['ticket', 'position'], unique=True),
-    ],
+    ]
 
     db_connector, _ = DatabaseManager(env).get_connector()
     for stmt in db_connector.to_sql(table):
