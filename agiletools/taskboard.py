@@ -1,3 +1,5 @@
+from agiletools.api import AgileToolsSystem
+
 from autocompleteplugin.autocomplete import AutoCompleteSystem
 from collections import defaultdict
 from trac.core import Component, implements, TracError
@@ -158,6 +160,7 @@ class TaskboardModule(Component):
         return self._formatted_data(get_f(req, milestone, valid_group, results, fields))
 
     def _get_standard_data_(self, req, milestone, field, results, fields):
+        ats = AgileToolsSystem(self.env)
         tickets_json = defaultdict(lambda: defaultdict(dict))
 
         # Allow for the unset option
@@ -168,6 +171,7 @@ class TaskboardModule(Component):
             filtered_result = dict((k, v)
                                    for k, v in result.iteritems()
                                    if k in fields)
+            filtered_result['position'] = ats.ticket_position(result['id'])
             filtered_result['changetime'] = to_utimestamp(result['changetime'])
             group_field_val = ticket.get_value_or_default(field["name"]) or ""
             tickets_json[group_field_val][result["id"]] = filtered_result
@@ -176,6 +180,7 @@ class TaskboardModule(Component):
 
     def _get_user_data_(self, req, milestone, field, results, fields):
         """Get data grouped by users. Should include extra user info"""
+        ats = AgileToolsSystem(self.env)
         tickets_json = defaultdict(lambda: defaultdict(dict))
 
         all_users = AutoCompleteSystem(self.env)._project_users()
@@ -196,6 +201,7 @@ class TaskboardModule(Component):
             filtered_result = dict((k, v)
                                    for k, v in result.iteritems()
                                    if k in fields)
+            filtered_result['position'] = ats.ticket_position(result['id'])
             filtered_result['changetime'] = to_utimestamp(result['changetime'])
             group_field_val = ticket.get_value_or_default(field["name"]) or ""
             tickets_json[group_field_val][result["id"]] = filtered_result
@@ -207,7 +213,7 @@ class TaskboardModule(Component):
         It's not possible to show tickets in different workflows on the same
         taskboard, so we create an additional outer group for workflows.
         We then get the workflow with the most tickets, and show that first"""
-
+        ats = AgileToolsSystem(self.env)
         loc = LogicaOrderController(self.env)
 
         # Data for status much more complex as we need to track the workflow
@@ -234,6 +240,7 @@ class TaskboardModule(Component):
             filtered = dict((k, v)
                             for k, v in r.iteritems()
                             if k in fields)
+            filtered['position'] = ats.ticket_position(r['id'])
             filtered['changetime'] = to_utimestamp(r['changetime'])
             filtered['actions'] = self._get_status_actions(req, op, wf, state)
             # Collect all actions requiring further input

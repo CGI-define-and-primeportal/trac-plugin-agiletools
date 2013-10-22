@@ -64,8 +64,16 @@ class AgileToolsSystem(Component):
                           db_default.name, i-1, i)
 
     # own methods
-    def insert_before(self, ticket, before_ticket):
+    def ticket_position(self, ticket):
+        cursor = self.env.get_read_db().cursor()
+        cursor.execute("""
+                        SELECT position FROM ticket_positions
+                        WHERE ticket = %s""", (ticket, ))
 
+        position = cursor.fetchone()
+        return position[0] if position else None
+
+    def insert_before(self, ticket, before_ticket):
         self.log.debug("Moving ticket %d to before %d",
                        ticket, before_ticket)
 

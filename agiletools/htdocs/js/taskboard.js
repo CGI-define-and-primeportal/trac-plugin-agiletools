@@ -638,22 +638,10 @@ var Group = Class.extend({
   },
 
   _calculate_new_position: function(ticket) {
-    var _this = this,
-        pos = -1;
-    $(".ticket", this.$elBody).not(ticket.$el).each(function(i) {
-        var next = $(this).data("_self"),
-            conditions;
+    var pos = -1;
 
-      if(_this.taskboard.groupBy == "priority") {
-        conditions = ticket.id < next.id;
-      }
-      else {
-        var lowerPrio = ticket.tData.priority_value < next.tData.priority_value,
-            samePrioLowerId = ticket.tData.priority_value == next.tData.priority_value &&
-                              ticket.id < next.id;
-            conditions = samePrioLowerId || lowerPrio;
-      }
-      if(conditions) {
+    $(".ticket", this.$elBody).not(ticket.$el).each(function(i) {
+      if(ticket.greater_than($(this).data("_self"))) {
         pos = i;
         return false;
       }
@@ -787,6 +775,29 @@ var Ticket = Class.extend({
     }
     else {
       this.animate_move(false);
+    }
+  },
+
+  _position_unset: function() {
+    return this.tData.position == null;
+  },
+
+  greater_than: function(other) {
+
+    var factors = [
+      [this._position_unset(), other._position_unset()],
+      [this.tData.position, other.tData.position],
+      [this.tData.priority_value, other.tData.priority_value],
+      [this.id, other.id]
+    ];
+
+    for(var i = 0; i < factors.length; i ++) {
+      var thisFactor = factors[i][0],
+          otherFactor = factors[i][1];
+
+      if(thisFactor != otherFactor) {
+        return thisFactor < otherFactor;
+      }
     }
   },
 
