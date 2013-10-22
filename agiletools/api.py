@@ -96,7 +96,7 @@ class AgileToolsSystem(Component):
                 # Find all unsorted tickets
                 cursor.execute("""
                     SELECT id,
-                        CAST(COALESCE(priority.value,999) AS int) AS prio
+                        CAST(COALESCE(priority.value,'999') AS int) AS prio
                     FROM ticket
                     LEFT OUTER JOIN enum AS priority
                         ON (priority.type='priority' AND priority.name=priority)
