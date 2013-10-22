@@ -250,8 +250,10 @@ class TaskboardModule(Component):
         # Retrieve Kanban-style status limits
         db = self.env.get_read_db()
         cursor = db.cursor()
-        cursor.execute("SELECT status, hardlimit FROM kanban_limits WHERE milestone = %s", (milestone,))
-        status_limits = dict((limit[0], limit[1]) for limit in cursor.fetchall())
+        cursor.execute("""
+            SELECT status, hardlimit FROM kanban_limits
+            WHERE milestone = %s""", (milestone,))
+        status_limits = dict((limit[0], limit[1]) for limit in cursor)
 
         # Initially show the most used workflow
         show_first = max(by_wf, key=lambda n: by_wf[n]).name
