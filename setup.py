@@ -20,6 +20,7 @@ setup(
             'templates/*',
         ]
     },
+    test_suite = 'agiletools.tests.suite',
     entry_points={
         'trac.plugins': [
             'agiletools.taskboard = agiletools.taskboard',

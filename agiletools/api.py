@@ -64,50 +64,74 @@ class AgileToolsSystem(Component):
                           db_default.name, i-1, i)
 
     # own methods
-    def insert_before(self, grouping, ticket, before_ticket):
+    def insert_before(self, ticket, before_ticket):
 
-        self.log.debug("Moving ticket %d to before %d for %s", 
-                       ticket, before_ticket, grouping)
+        self.log.debug("Moving ticket %d to before %d",
+                       ticket, before_ticket)
 
-        @with_transaction(self.env)
+        @self.env.with_transaction()
         def do_insert_before(db):
+
+            tst = ticket == 4 and before_ticket == 3
+
             cursor = db.cursor()
+            cursor.execute("""
+                            SELECT position FROM ticket_positions
+                            WHERE ticket = %s""", (before_ticket, ))
 
-            cursor.execute("SELECT position FROM ticket_positions WHERE grouping = %s LIMIT 1",
-                           (grouping,))
-
-            if not cursor.fetchone():
-                # we can't move a ticket until we have stored a default order for all tickets
-                # hopefully we'll come up with a faster way to do this which works for both
-                # sqlite and postgresql
-                # and maybe doesn't have to assume the default ordering was priority then id
-                self.log.warning("No positioning data available, copying default ordering into positioning table")
-                cursor.execute("""
-                 SELECT id,
-                        COALESCE(priority.value,'')='' AS _o_1,
-                        CAST(priority.value AS integer) AS _o_2
-                 FROM ticket
-                 LEFT OUTER JOIN enum AS priority ON (priority.type='priority' AND priority.name=priority)
-                 ORDER BY COALESCE(priority.value,'')='',CAST(priority.value AS integer), id
-                """)
-                orders = []
-                for r in enumerate(cursor.fetchall()):
-                    orders.append((grouping, r[0], r[1][0]))
-                cursor.executemany("INSERT INTO ticket_positions (grouping, position, ticket) VALUES (%s,%s,%s)",
-                                   orders)
-
-            cursor.execute("SELECT position FROM ticket_positions WHERE grouping = %s and ticket = %s",
-                           (grouping, before_ticket))
             before_position = cursor.fetchone()
 
+            # If our before ticket isn't yet sorted, then we have an issue
+            # we need to calculate where it's psuedo-position is (which
+            # depends on it's priority and ID) and assign the ticket _and_
+            # all those unsorted which have higher psuedo-positions (higher 
+            # prio, higher ID) a fixed position
+
             if not before_position:
-                # maybe we're putting our ticket before one that is recently inserted to the ticket database
-                before_position = [0]
 
-            # TODO deal with moving positions down too, to avoid growing without bounds
-            cursor.execute("UPDATE ticket_positions SET position = position + 1 WHERE position >= %s AND grouping = %s", (before_position[0], grouping))
-            cursor.execute("DELETE FROM ticket_positions WHERE grouping = %s and ticket = %s",
-                           (grouping, ticket))
-            cursor.execute("INSERT INTO ticket_positions (grouping, ticket, position) VALUES (%s,%s,%s)",
-                           (grouping, ticket, before_position[0]))
+                cursor.execute("SELECT MAX(position) FROM ticket_positions")
+                last = cursor.fetchone()
+                start = (last[0] or 0) + 1
 
+                before_position = [start]
+
+                # Find all unsorted tickets
+                cursor.execute("""
+                    SELECT id,
+                        CAST(COALESCE(priority.value,999) AS int) AS prio
+                    FROM ticket
+                    LEFT OUTER JOIN enum AS priority
+                        ON (priority.type='priority' AND priority.name=priority)
+                    LEFT OUTER JOIN ticket_positions AS positions
+                        ON (positions.ticket=id)
+                    WHERE positions.position IS NULL
+                    ORDER BY prio, id""")
+
+                positions = []
+
+                for i, row in enumerate(cursor):
+                    positions.append((row[0], start + i))
+
+                    # We've reached our before ticket, don't fix any more
+                    if row[0] == before_ticket:
+                        before_position = [start + i]
+                        break
+
+                cursor.executemany("""
+                    INSERT INTO ticket_positions (ticket, position)
+                    VALUES (%s,%s)""", positions)
+
+            # Move all tickets below our before ticket down on (open up a gap)
+            # The gap shouldn't be important as we only care about the order
+            cursor.execute("""
+                            UPDATE ticket_positions
+                            SET position = position + 1
+                            WHERE position >= %s""", (before_position[0], ))
+
+            cursor.execute("""
+                            DELETE FROM ticket_positions
+                            WHERE ticket = %s""", (ticket, ))
+
+            cursor.execute("""
+                            INSERT INTO ticket_positions (ticket, position)
+                            VALUES (%s,%s)""", (ticket, before_position[0], ))
