@@ -1,7 +1,5 @@
 from trac.db import DatabaseManager
 
-from tracremoteticket.db_default import schema
-
 def do_upgrade(env, ver, cursor):
     """Change schema name from taskboard_schema to agiletools_version
     """
