@@ -1,4 +1,5 @@
 import unittest
+import random
 from trac.core import Component, implements
 from trac.test import EnvironmentStub, Mock
 
@@ -33,50 +34,91 @@ class PositioningTestCase(unittest.TestCase):
         self.assertEqual([r['id'] for r in Query(self.env, order='id', desc=1).execute(self.req)],
                          [5,4,3,2,1])
 
-    def test_positioning(self):
+    def test_manual_move(self):
         for i in range(3):
             Ticket(self.env).insert()
 
-        self.ts.insert_before(1,2)
+        self.ts.move(1,0)
         self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
                          [1,2,3])
 
-        self.ts.insert_before(2,1)
+        # Unique case which again shouldn't change anything
+        # If we moved the ticket to index 1 then 0 would be empty
+        # and we would have a gap. There's no need to do anything
+        self.ts.move(1,1)
+        self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
+                         [1,2,3])
+
+        self.assertEqual(0, self.ts.position(1))
+
+        self.ts.move(2,0)
         self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
                          [2,1,3])
 
-        self.ts.insert_before(3,2)
+        # Three doesn't have a position yet
+        self.ts.move(2,3)
         self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
-                         [3,2,1])
+                         [1,2,3])
 
-        self.ts.insert_before(1,2)
-        self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
-                         [3,1,2])
 
-        self.ts.insert_before(2,1)
-        self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
-                         [3,2,1])
+    def test_relative_move(self):
 
-    def test_inserting_into_middle_of_default(self):
-        for i in range(6):
+        tickets = 6
+        for i in range(tickets):
             Ticket(self.env).insert()
 
-        self.ts.insert_before(4,2)
+        # Move before
+        self.ts.move(4, self.ts.position(1, generate=True))
         self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
-                         [1,4,2,3,5,6])
+                         [4,1,2,3,5,6])
 
-        self.ts.insert_before(4,3)
+        self.ts.move(4, self.ts.position(3, generate=True))
         self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
                          [1,2,4,3,5,6])
 
-        self.ts.insert_before(1,6)
+        self.ts.move(1, self.ts.position(6, generate=True))
         self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
                          [2,4,3,5,1,6])
 
-        self.ts.insert_before(6,4)
+        self.ts.move(6, self.ts.position(4, generate=True))
         self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
                          [2,6,4,3,5,1])
 
+        # Move after
+        self.ts.move(2, self.ts.position(1, generate=True) + 1)
+        self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
+                         [6,4,3,5,1,2])
+
+        self.ts.move(4, self.ts.position(5, generate=True) + 1)
+        self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
+                         [6,3,5,4,1,2])
+
+        self.ts.move(4, self.ts.position(1, generate=True) + 1)
+        self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
+                         [6,3,5,1,4,2])
+
+    def test_no_gaps(self):
+
+        tickets = 100
+        moves = 1000
+
+        tickets_range = range(tickets)
+
+        for i in tickets_range:
+            Ticket(self.env).insert()
+
+        random.seed(0)
+
+        for j in xrange(moves):
+            mover = random.randint(1,tickets)
+            relative = random.randint(1,tickets)
+            self.ts.move(mover, self.ts.position(relative, generate=True))
+
+        final_positions = [self.ts.position(r['id']) for r in Query(self.env, max=tickets).execute(self.req)]
+
+        self.ts.move(999,999)
+        if None not in final_positions:
+            self.assertEqual(final_positions, tickets_range)
 
 # used if you run this not via setup.py test
 def suite():

@@ -3,10 +3,13 @@
 # All rights reserved.
 #
 
+from datetime import datetime
+
 from trac.web.api import ITemplateStreamFilter, IRequestFilter
 from trac.core import Component, implements, TracError, Interface, ExtensionPoint
 from trac.db import DatabaseManager
 from trac.env import IEnvironmentSetupParticipant
+from trac.util.datefmt import to_utimestamp, utc
 
 from agiletools import db_default
 
@@ -64,42 +67,27 @@ class AgileToolsSystem(Component):
                           db_default.name, i-1, i)
 
     # own methods
-    def ticket_position(self, ticket):
+    def position(self, ticket, generate=False):
         cursor = self.env.get_read_db().cursor()
         cursor.execute("""
                         SELECT position FROM ticket_positions
                         WHERE ticket = %s""", (ticket, ))
 
-        position = cursor.fetchone()
-        return position[0] if position else None
+        position = (cursor.fetchone() or [None])[0]
 
-    def insert_before(self, ticket, before_ticket):
-        self.log.debug("Moving ticket %d to before %d",
-                       ticket, before_ticket)
+        # When we insert a ticket at a position, we often want it to be 
+        # relative to another ticket. This method allows us to ensure that
+        # our relative ticket _always_ has an explicit position
+        if generate and not position:
 
-        @self.env.with_transaction()
-        def do_insert_before(db):
+            new_position = [None]
 
-            cursor = db.cursor()
-            cursor.execute("""
-                            SELECT position FROM ticket_positions
-                            WHERE ticket = %s""", (before_ticket, ))
-
-            before_position = cursor.fetchone()
-
-            # If our before ticket isn't yet sorted, then we have an issue
-            # we need to calculate where it's psuedo-position is (which
-            # depends on it's priority and ID) and assign the ticket _and_
-            # all those unsorted which have higher psuedo-positions (higher 
-            # prio, higher ID) a fixed position
-
-            if not before_position:
+            @self.env.with_transaction()
+            def do_set_ticket_position(db):
 
                 cursor.execute("SELECT MAX(position) FROM ticket_positions")
                 last = cursor.fetchone()
-                start = (last[0] or 0) + 1
-
-                before_position = [start]
+                new_position[0] = start = last[0] + 1 if last[0] else 0
 
                 # Find all unsorted tickets
                 cursor.execute("""
@@ -119,25 +107,78 @@ class AgileToolsSystem(Component):
                     positions.append((row[0], start + i))
 
                     # We've reached our before ticket, don't fix any more
-                    if row[0] == before_ticket:
-                        before_position = [start + i]
+                    if row[0] == ticket:
+                        new_position[0] = start + i
                         break
 
                 cursor.executemany("""
                     INSERT INTO ticket_positions (ticket, position)
                     VALUES (%s,%s)""", positions)
 
-            # Move all tickets below our before ticket down on (open up a gap)
-            # The gap shouldn't be important as we only care about the order
-            cursor.execute("""
-                            UPDATE ticket_positions
-                            SET position = position + 1
-                            WHERE position >= %s""", (before_position[0], ))
+            return new_position[0]
 
-            cursor.execute("""
-                            DELETE FROM ticket_positions
-                            WHERE ticket = %s""", (ticket, ))
+        return position
+
+    def move(self, ticket, position, author=None, when=None):
+        self.log.debug("Moving ticket %d to position %d",
+                       ticket, position)
+
+        if when is None:
+            when = datetime.now(utc)
+        when_ts = to_utimestamp(when)
+
+        old_position = self.position(ticket)
+        old_is_set = old_position is not None
+
+        if position == old_position:
+            return
+
+        @self.env.with_transaction()
+        def do_move(db):
+
+            cursor = db.cursor()
+
+            # If we're moving a ticket is moving down then we handle it
+            # differently. In particular we decrement the position by one
+            # as all tickets get shifted up one when it's moved from it's old
+            # position
+            moving_up = not old_is_set or position < old_position
+            new_position = position if moving_up else position - 1
+
+            if old_is_set:
+                cursor.execute("""
+                                DELETE FROM ticket_positions
+                                WHERE ticket = %s""", (ticket, ))
+
+            if moving_up:
+
+                if old_is_set:
+                    cursor.execute("""
+                                    UPDATE ticket_positions
+                                    SET position = position + 1
+                                    WHERE position BETWEEN %s and %s""",
+                                    (position, old_position))
+                else:
+                    cursor.execute("""
+                                    UPDATE ticket_positions
+                                    SET position = position + 1
+                                    WHERE position >= %s""",
+                                    (position, ))
+
+            else:
+                cursor.execute("""
+                                UPDATE ticket_positions
+                                SET position = position - 1
+                                WHERE position BETWEEN %s and %s""",
+                                (old_position, new_position))
 
             cursor.execute("""
                             INSERT INTO ticket_positions (ticket, position)
-                            VALUES (%s,%s)""", (ticket, before_position[0], ))
+                            VALUES (%s,%s)""", (ticket, new_position))
+
+            # Log the move
+            cursor.execute("""
+                            INSERT INTO ticket_positions_change
+                                (ticket, time, author, oldposition, newposition)
+                            VALUES (%s, %s, %s, %s, %s)""",
+                            (ticket, when_ts, author, old_position, new_position))
