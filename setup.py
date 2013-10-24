@@ -12,7 +12,10 @@ setup(
     author_email="ian.clark@cgi.com",
     license='BSD',
     url='http://define.primeportal.com/',
-    packages=['agiletools'],
+    packages=[
+        'agiletools',
+        'agiletools.upgrades',
+        ],
     package_data={
         'agiletools': [
             'htdocs/css/*.css',
