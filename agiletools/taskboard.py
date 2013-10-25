@@ -168,7 +168,7 @@ class TaskboardModule(Component):
             filtered_result = dict((k, v)
                                    for k, v in result.iteritems()
                                    if k in fields)
-            filtered_result['position'] = ats.ticket_position(result['id'])
+            filtered_result['position'] = ats.position(result['id'])
             filtered_result['changetime'] = to_utimestamp(result['changetime'])
             group_field_val = ticket.get_value_or_default(field["name"]) or ""
             tickets_json[group_field_val][result["id"]] = filtered_result
@@ -198,7 +198,7 @@ class TaskboardModule(Component):
             filtered_result = dict((k, v)
                                    for k, v in result.iteritems()
                                    if k in fields)
-            filtered_result['position'] = ats.ticket_position(result['id'])
+            filtered_result['position'] = ats.position(result['id'])
             filtered_result['changetime'] = to_utimestamp(result['changetime'])
             group_field_val = ticket.get_value_or_default(field["name"]) or ""
             tickets_json[group_field_val][result["id"]] = filtered_result
@@ -237,7 +237,7 @@ class TaskboardModule(Component):
             filtered = dict((k, v)
                             for k, v in r.iteritems()
                             if k in fields)
-            filtered['position'] = ats.ticket_position(r['id'])
+            filtered['position'] = ats.position(r['id'])
             filtered['changetime'] = to_utimestamp(r['changetime'])
             filtered['actions'] = self._get_status_actions(req, op, wf, state)
             # Collect all actions requiring further input
