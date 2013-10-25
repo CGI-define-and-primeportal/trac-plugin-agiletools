@@ -6,7 +6,7 @@ $(document).ready(function() {
       $all_handles = $();
 
   // Add handles to head and body
-  $("<th class='rearrange-handle'></th>").prependTo("thead tr", $table);
+  $("thead tr", $table).prepend("<th class='rearrange-handle'></th>");
   $("tbody tr", $table).each(function() {
     $handle = $handle_prototype.clone().prependTo(this);
     $all_handles = $all_handles.add($handle);
