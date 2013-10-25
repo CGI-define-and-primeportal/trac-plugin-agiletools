@@ -26,6 +26,7 @@ setup(
     test_suite = 'agiletools.tests.suite',
     entry_points={
         'trac.plugins': [
+            'agiletools.backlog = agiletools.backlog',
             'agiletools.taskboard = agiletools.taskboard',
             'agiletools.api    = agiletools.api',
         ]
