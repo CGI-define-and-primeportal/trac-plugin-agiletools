@@ -180,7 +180,7 @@ class TaskboardModule(Component):
         ats = AgileToolsSystem(self.env)
         tickets_json = defaultdict(lambda: defaultdict(dict))
 
-        all_users = AutoCompleteSystem(self.env)._project_users()
+        all_users = AutoCompleteSystem(self.env)._project_users
         most_popular_group = max(all_users, key=lambda x: len(x))
 
         options = [""]
