@@ -18,7 +18,7 @@ $(document).ready(function() {
 
   $all_handles.tooltip({
     title: "Reorder ticket",
-    placement: "left",
+    placement: "right",
     container: "body"
   });
 
