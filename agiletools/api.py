@@ -68,7 +68,8 @@ class AgileToolsSystem(Component):
 
     # own methods
     def position(self, ticket, generate=False):
-        cursor = self.env.get_read_db().cursor()
+        db = self.env.get_read_db()
+        cursor = db.cursor()
         cursor.execute("""
                         SELECT position FROM ticket_positions
                         WHERE ticket = %s""", (ticket, ))
@@ -80,42 +81,40 @@ class AgileToolsSystem(Component):
         # our relative ticket _always_ has an explicit position
         if generate and not position:
 
-            new_position = [None]
+            cursor.execute("SELECT MAX(position) FROM ticket_positions")
+            last = cursor.fetchone()
+            new_position = start = last[0] + 1 if last[0] else 0
+
+            # Find all unsorted tickets
+            cursor.execute("""
+                SELECT id,
+                    CAST(COALESCE(priority.value,'999') AS int) AS prio
+                FROM ticket
+                LEFT OUTER JOIN enum AS priority
+                    ON (priority.type='priority' AND priority.name=priority)
+                LEFT OUTER JOIN ticket_positions AS positions
+                    ON (positions.ticket=id)
+                WHERE positions.position IS NULL
+                ORDER BY prio, id""")
+
+            positions = []
+
+            for i, row in enumerate(cursor):
+                positions.append((row[0], start + i))
+
+                # We've reached our before ticket, don't fix any more
+                if row[0] == ticket:
+                    new_position = start + i
+                    break
 
             @self.env.with_transaction()
             def do_set_ticket_position(db):
-
-                cursor.execute("SELECT MAX(position) FROM ticket_positions")
-                last = cursor.fetchone()
-                new_position[0] = start = last[0] + 1 if last[0] else 0
-
-                # Find all unsorted tickets
-                cursor.execute("""
-                    SELECT id,
-                        CAST(COALESCE(priority.value,'999') AS int) AS prio
-                    FROM ticket
-                    LEFT OUTER JOIN enum AS priority
-                        ON (priority.type='priority' AND priority.name=priority)
-                    LEFT OUTER JOIN ticket_positions AS positions
-                        ON (positions.ticket=id)
-                    WHERE positions.position IS NULL
-                    ORDER BY prio, id""")
-
-                positions = []
-
-                for i, row in enumerate(cursor):
-                    positions.append((row[0], start + i))
-
-                    # We've reached our before ticket, don't fix any more
-                    if row[0] == ticket:
-                        new_position[0] = start + i
-                        break
-
+                cursor = db.cursor()
                 cursor.executemany("""
                     INSERT INTO ticket_positions (ticket, position)
                     VALUES (%s,%s)""", positions)
 
-            return new_position[0]
+            return new_position
 
         return position
 
