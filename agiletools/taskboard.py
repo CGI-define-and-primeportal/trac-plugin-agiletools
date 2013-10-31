@@ -118,10 +118,11 @@ class TaskboardModule(Component):
                     'group_by_fields': self.valid_fields,
                 })
 
-                add_script(req, 'taskboard/js/taskboard.js')
+                add_script(req, 'agiletools/js/update_model.js')
+                add_script(req, 'agiletools/js/taskboard.js')
                 add_script_data(req, script)
 
-                add_stylesheet(req, 'taskboard/css/taskboard.css')
+                add_stylesheet(req, 'agiletools/css/taskboard.css')
                 return "taskboard.html", data, None
 
     def all_other_changes(self, req, changed_in_scope, from_to):
@@ -399,7 +400,7 @@ class TaskboardModule(Component):
 
     # ITemplateProvider methods
     def get_htdocs_dirs(self):
-        return [('taskboard', resource_filename(__name__, 'htdocs'))]
+        return [('agiletools', resource_filename(__name__, 'htdocs'))]
 
     def get_templates_dirs(self):
         return [resource_filename(__name__, 'templates')]

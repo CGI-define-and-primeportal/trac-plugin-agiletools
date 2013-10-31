@@ -1,0 +1,125 @@
+#backlog {
+  color: #555;
+  margin-top:10px;
+}
+
+#backlog > div { 
+  border:1px solid #DDD;
+  border-radius:5px;
+  padding: 0;
+  background: #FCFCFC;
+}
+
+#backlog .top {
+  background: #F8F8F8;
+  font-weight: bold;
+  border-radius:5px 5px 0 0;
+  padding: 10px;
+  border-bottom:3px solid #AAA;
+}
+
+#backlog #product-backlog { 
+  border-color: #AED7FF;
+}
+
+#product-backlog .top {
+  color:#0066CC;
+  background:#DFEEFD;
+  border-color:#77BAFF;
+}
+
+#backlog #product-backlog .top .hours { 
+  background: #EDF6FF;
+  border-color: #AED7FF;
+}
+
+#backlog .top .title {
+  font-size: 105%;
+  line-height: 18px;
+  overflow: hidden;
+  margin-top:2px;
+  text-overflow:ellipsis;
+  white-space: nowrap;
+}
+
+#backlog .top .hours { 
+  border-radius:5px;
+  font-size: 80%;
+  line-height: 21px;
+  height: 21px;
+  margin:0 5px 0 5px;
+  padding:0 6px;
+  float:right;
+  border:1px solid #CCC;
+  background: #FAFAFA;
+}
+
+#backlog .tickets-wrap { overflow-y: auto; }
+
+@media (min-height:400px) and (max-height: 680px) {
+  #backlog .tickets-wrap { max-height: 330px; }
+}
+@media (min-height:681px) and (max-height: 799px) {
+  #backlog .tickets-wrap { max-height: 430px; }
+}
+@media (min-height:800px) and (max-height: 979px) {
+  #backlog .tickets-wrap { max-height: 580px; }
+}
+@media (min-height:980px) and (max-height: 1100px) {
+  #backlog .tickets-wrap { max-height: 680px; }
+}
+
+#backlog .tickets {
+  width:100%;
+  border-collapse:collapse;
+  margin: 0;
+}
+
+#backlog .tickets td {
+  border:none;
+  border-top:1px solid #DDD;
+  padding: 5px 10px;
+  height: 5px;
+}
+
+#backlog td.wait {
+  text-align: center;
+  font-size: 150%;
+}
+
+#backlog .tickets td {
+  cursor: move;
+  padding: 5px;
+}
+
+#backlog .tickets td.priority { 
+  padding: 0;
+  width:10px;
+  font-size: 0;
+}
+
+#backlog .tickets tbody .priority[data-priority="1"] { background: #E89E9E; }
+#backlog .tickets tbody .priority[data-priority="2"] { background: #FFCFB3; }
+#backlog .tickets tbody .priority[data-priority="3"] { background: #EAEAEA; }
+#backlog .tickets tbody .priority[data-priority="4"] { background: #A6C5F5; }
+#backlog .tickets tbody .priority[data-priority="5"] { background: #A9F5BB; }
+
+#backlog .tickets .id { color: #999; }
+#backlog .tickets .summary a { color: #555; }
+#backlog .tickets .hours {
+  font-size: 85%;
+  color: #777;
+}
+
+#backlog .tickets tbody > tr:nth-child(2n+2) td { background:#F5F5F5; }
+
+
+#backlog .tickets tbody {
+  min-height: 50px;
+}
+#backlog .tickets tbody tr:first-child td { border-top:none; }
+
+#backlog td.spacer { 
+  border:none;
+  width:10px;
+}

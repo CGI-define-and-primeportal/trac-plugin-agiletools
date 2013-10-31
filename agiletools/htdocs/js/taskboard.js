@@ -30,7 +30,7 @@ $(document).ready(function() {
 
 // TASKBOARD PUBLIC CLASS DEFINITION
 // =================================
-var Taskboard = Class.extend({
+var Taskboard = LiveUpdater.extend({
 
   init: function(id, $container, groupBy, groupData, ticketData, defaultWorkflow) {
 
@@ -230,37 +230,6 @@ var Taskboard = Class.extend({
 
   filter_remove: function(groupName) {
     this.groups[groupName].filter_hide();
-  },
-
-  init_updates: function() {
-    var _this = this;
-    this.updateCount = 0;
-    this.lastUpdate = iso_8601_datetime(new Date());
-    this.upInterval = setInterval(function() {
-      _this.updateCount ++;
-      // Do a complete refresh every 10 mins
-      if(_this.updateCount % 120 === 0) {
-        _this.refresh(true);
-      }
-      else {
-        _this.get_updates();
-      }
-    } , 5000);
-  },
-
-  get_updates: function() {
-    var _this = this,
-        now = iso_8601_datetime(new Date());
-    $.ajax({
-      data: {
-        'from': this.lastUpdate,
-        'to': now
-      },
-      success:function(data, textStatus, jqXHR) {
-        _this.process_update(data);
-        _this.lastUpdate = now;
-      }
-    });
   },
 
   // Restrict the user from moving the current ticket to certain groups
@@ -909,18 +878,6 @@ var Ticket = Class.extend({
     this.group.taskboard.update_ticket_counts();
   }
 });
-
-// HELPER METHODS
-// ==============
-function iso_8601_datetime(date) {
-  function pad(n) { return n < 10 ? '0' + n : n; }
-  return date.getUTCFullYear() + '-' +
-      pad(date.getUTCMonth() + 1) + '-' +
-      pad(date.getUTCDate()) + 'T' +
-      pad(date.getUTCHours()) + ':' +
-      pad(date.getUTCMinutes()) + ':' +
-      pad(date.getUTCSeconds()) + 'Z';
-}
 
 // Change query, this will be removed later when replaced with actual query system
 function event_change_query() {
