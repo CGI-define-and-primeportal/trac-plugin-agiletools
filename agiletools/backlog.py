@@ -26,6 +26,8 @@ class BacklogModule(Component):
         return req.path_info == "/backlog"
 
     def process_request(self, req):
+        req.perm.assert_permission('TICKET_VIEW')
+
         ats = AgileToolsSystem(self.env)
 
         if req.get_header('X-Requested-With') == 'XMLHttpRequest':
