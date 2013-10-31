@@ -66,7 +66,6 @@ var Backlog = LiveUpdater.extend({
 
   add_remove_milestone: function() {
     this.set_spans();
-    this.set_closeables();
     this.refresh_sortables();
   },
 
@@ -90,13 +89,6 @@ var Backlog = LiveUpdater.extend({
     var spanLength = 12 / this.length;
     for(var milestone in this.milestones) {
       this.milestones[milestone].$container.attr("class", "span" + spanLength);
-    }
-  },
-
-  set_closeables: function() {
-    closeable = this.length > 1;
-    for(var milestone in this.milestones) {
-      this.milestones[milestone].set_closeable(closeable);
     }
   },
 
@@ -133,7 +125,7 @@ var BacklogMilestone = Class.extend({
   draw: function() {
     this.$container = $("<div></div>").appendTo(this.backlog.$container);
     this.$top       = $("<div class='top'></div>").appendTo(this.$container);
-    this.$stats     =   $("<div class='hours'></div>").appendTo(this.$top);
+    this.$stats     =   $("<div class='hours'><i class='icon-spin icon-spinner'></i></div>").appendTo(this.$top);
     this.$title     =   $("<div class='title'></div>").appendTo(this.$top);
     this.$filter    = $("<input class='filter' type='text' placeholder='Filter Tickets...' />").appendTo(this.$container);
     
@@ -224,14 +216,6 @@ var BacklogMilestone = Class.extend({
     });
   },
 
-  set_closeable: function(closeable) {
-    if(this.$closeBtn) {
-      if(closeable) {
-        var _this = this;
-        this.$closeBtn.on("click", function() {
-          _this.remove();
-        }).removeClass("disabled");
-      }
   _filter_map: {
     "priority:": ["priority", "starts_with"],
     "type:": ["type", "starts_with"],
@@ -362,7 +346,6 @@ var BacklogMilestone = Class.extend({
         }
       }
       else {
-        this.$closeBtn.off("click").addClass("disabled");
         for(var j = 0; j < defaultLength; j ++) {
           if(this._get_filter("is_in")(input, ticket.tData[defaultFields[j]])) {
             passesTests = true;
@@ -389,6 +372,9 @@ var BacklogMilestone = Class.extend({
 
   events: function() {
     this.$filter.on("keyup", $.proxy(this.filter_tickets, this));
+    if(this.$closeBtn) {
+      this.$closeBtn.on("click", $.proxy(this.remove, this));
+    }
   }
 });
 
