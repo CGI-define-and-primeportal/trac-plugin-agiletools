@@ -126,6 +126,8 @@ var BacklogMilestone = Class.extend({
     this.length = 0;
     this.tickets = {};
     this.get_tickets();
+
+    this.events();
   },
 
   draw: function() {
@@ -133,9 +135,11 @@ var BacklogMilestone = Class.extend({
     this.$top       = $("<div class='top'></div>").appendTo(this.$container);
     this.$stats     =   $("<div class='hours'></div>").appendTo(this.$top);
     this.$title     =   $("<div class='title'></div>").appendTo(this.$top);
+    this.$filter    = $("<input class='filter' type='text' placeholder='Filter Tickets...' />").appendTo(this.$container);
     
-    this.$table     = $("<table class='tickets'></table>").appendTo($("<div class='tickets-wrap'></div>").appendTo(this.$container));
-    this.$tBody     =   $("<tbody><tr><td class='wait'><i class='icon-spin icon-spinner'></i></td></tr></tbody>").appendTo(this.$table);
+    this.$tktWrap   = $("<div class='tickets-wrap'></div>").appendTo(this.$container)
+    this.$table       = $("<table class='tickets'></table>").appendTo(this.$tktWrap);
+    this.$tBody         =   $("<tbody><tr><td class='wait'><i class='icon-spin icon-spinner'></i></td></tr></tbody>").appendTo(this.$table);
     this.$tBody.data("_self", this);
 
     if(this.name == "") {
@@ -228,10 +232,148 @@ var BacklogMilestone = Class.extend({
           _this.remove();
         }).removeClass("disabled");
       }
-      else {
-        this.$closeBtn.off("click").addClass("disabled");
+  _filter_map: {
+    "priority:": ["priority", "starts_with"],
+    "type:": ["type", "starts_with"],
+    "summary:": ["summary", "is_in"],
+    "reporter:": ["reporter", "is_in"],
+    "component:": ["component", "is_in"],
+    "type": ["type", "is_in"]
+  },
+
+  _get_filter: function(name) {
+    function search_friendly(input) {
+      return input.toString().toLowerCase();
+    }
+
+    filters = {
+      is_in: function(input, comparedWith) {
+        return search_friendly(comparedWith).indexOf(input) != -1;
+      },
+      starts_with: function(input, comparedWith) {
+        return search_friendly(comparedWith).indexOf(input) == 0;
+      },
+      equals: function(input, comparedWith) {
+        return search_friendly(comparedWith) == input;
+      }
+    };
+
+    return filters[name] || filters.is_in;
+  },
+
+  // Add a slight delay so we don't query any more than we need to
+  filter_tickets: function() {
+    var _this = this;
+    clearTimeout(this.filterTimeout);
+    this.filterTimeout = setTimeout(function() {
+      _this._do_filter.apply(_this);
+    }, 300);
+  },
+
+  _do_filter: function() {
+    var query = $.trim(this.$filter.val().toLowerCase());
+
+    // Empty query, don't do anything
+    if(query == "") {
+      this.$container.addClass("no-filter");
+    }
+
+    // If we enter a hash, then instead of filtering we scroll to the ticket
+    else if(query.indexOf("#") == 0) {
+      var ticketId = query.substring(1);
+      if(ticketId in this.tickets) {
+        // We need relative positioning to calculate, but it prevents us
+        // from moving tickets between milestones, so turn on/calculate/off
+        this.$table.css("position", "relative");
+        this.$tktWrap.scrollTop(this.tickets[ticketId].$container.position().top);
+        this.$table.removeAttr("style");
       }
     }
+
+    else {
+      this.$tktWrap.scrollTop(0);
+
+      // Support multiple queries separated by a comma
+      var queries = query.split(","),
+          queriesLength = queries.length,
+          queries_sorted = [];
+          sortedLength = 0;
+
+      // Parse our query
+      for(var i = 0; i < queriesLength ; i ++) {
+        var query = $.trim(queries[i]),
+            usingFilter = false;
+
+        // Check for keywords such as # or priority:
+        // if we find one being used, but the value is blank, we disregard
+        for(var filter in this._filter_map) {
+          if(query.indexOf(filter) == 0) {
+            query = $.trim(query.substring(filter.length));
+            if(query) {
+              queries_sorted.push([query, this._filter_map[filter]]);
+              sortedLength ++;
+            }
+            usingFilter = true;
+            break;
+          }
+        }
+
+        // No explicit filter
+        if(!usingFilter) {
+          queries_sorted.push([query]);
+          sortedLength ++;
+        }
+      }
+
+      // We've parsed our query and actually have something to check against
+      if(sortedLength) {
+
+        this.$container.removeClass("no-filter");
+
+        for(var ticket_id in this.tickets) {
+          var ticket = this.tickets[ticket_id];
+          ticket.toggle_visibility(this._ticket_satisfies_query(ticket, queries_sorted))
+        }
+      }
+
+      // Our parsed query string contained nothing worth filtering
+      else {
+        this.$container.addClass("no-filter");
+      }
+    }
+  },
+
+  _ticket_satisfies_query: function(ticket, queries) {
+    var defaultFields = ["id", "summary"],
+        defaultLength = defaultFields.length;
+
+    for(var i = 0; i < queries.length; i ++) {
+      var input = queries[i][0],
+          filter = queries[i][1],
+          passesTests = false;
+
+      // Using a filter
+      if(filter) {
+        var field = ticket.tData[filter[0]],
+            f = this._get_filter(filter[1]);
+
+        if(f(input, field)) {
+          passesTests = true;
+        }
+      }
+      else {
+        this.$closeBtn.off("click").addClass("disabled");
+        for(var j = 0; j < defaultLength; j ++) {
+          if(this._get_filter("is_in")(input, ticket.tData[defaultFields[j]])) {
+            passesTests = true;
+            break;
+          }
+        }
+      }
+      if(!passesTests) break;
+    }
+
+    return passesTests;
   },
 
   remove: function() {
@@ -242,6 +384,11 @@ var BacklogMilestone = Class.extend({
     this.backlog._remove_milestone_references(this);
     if(this.$closeBtn) this.$closeBtn.tooltip("destroy");
     this.$container.remove();
+    clearTimeout(this.filterTimeout);
+  },
+
+  events: function() {
+    this.$filter.on("keyup", $.proxy(this.filter_tickets, this));
   }
 });
 
@@ -309,6 +456,10 @@ var MilestoneTicket = Class.extend({
         }
       }
     })
+  },
+
+  toggle_visibility: function(toggle) {
+    this.$container.toggleClass("filter-hidden", !toggle);
   },
 
   events: function() {
