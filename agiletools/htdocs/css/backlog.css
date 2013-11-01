@@ -118,7 +118,8 @@
 #backlog .tickets .summary a { color: #555; }
 #backlog .tickets .hours {
   font-size: 85%;
-  color: #777;
+  color: #888;
+  white-space: nowrap;
 }
 
 #backlog .tickets tbody > tr:nth-child(2n+2) td { background:#F5F5F5; }

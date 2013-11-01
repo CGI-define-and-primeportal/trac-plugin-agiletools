@@ -194,7 +194,10 @@ var BacklogMilestone = Class.extend({
   },
 
   set_stats: function() {
-    this.$stats.html(this.length + " tickets &mdash; " + this.total_hours + " hours");
+    this.$stats.html(
+      "<i class='icon-ticket'></i> " + this.length +
+      "<i class='margin-left-small icon-time'></i> " + pretty_time(this.total_hours)
+    );
   },
 
   set_empty_message: function() {
@@ -413,7 +416,7 @@ var MilestoneTicket = Class.extend({
           + this.tData.summary + 
         "</a>" +
       "</td>" +
-      "<td class='hours'>" + this.tData.hours + " hours</td>" +
+      "<td class='hours'>" + pretty_time(this.tData.hours) + "</td>" +
     "</tr>");
 
     this.$container.appendTo(this.milestone.$tBody).data("_self", this);
@@ -479,3 +482,22 @@ var MilestoneTicket = Class.extend({
   }
 
 });
+
+// Helper Methods
+function pretty_time(float_time) {
+  var result,
+      hours = Math.floor(float_time),
+      minutes = Math.floor((float_time - hours) * 60);
+
+  if(hours) {
+    result = hours + "h";
+    if(minutes) {
+      var pad = "0" + minutes.toString();
+      result += pad.substring(pad.length - 2) + "m";
+    }
+  }
+  else {
+    result = "0h";
+  }
+  return result;
+}
