@@ -92,18 +92,14 @@
 #backlog .tickets td {
   border:none;
   border-top:1px solid #DDD;
-  padding: 5px 10px;
-  height: 5px;
+  cursor: move;
+  padding: 5px;
+  vertical-align: middle;
 }
 
 #backlog td.wait {
   text-align: center;
   font-size: 150%;
-}
-
-#backlog .tickets td {
-  cursor: move;
-  padding: 5px;
 }
 
 #backlog .tickets td.priority { 
