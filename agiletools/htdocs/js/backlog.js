@@ -51,7 +51,10 @@ var Backlog = LiveUpdater.extend({
 
     this.$container.sortable({
       handle: ".top",
-      items: "> *:not(#product-backlog)"
+      items: "> *:not(#product-backlog)",
+      stop: function(e, ui) {
+        ui.item.removeAttr("style");
+      }
     });
   },
 
@@ -385,9 +388,25 @@ var BacklogMilestone = Class.extend({
   },
 
   events: function() {
+    var _this = this;
+
     this.$filter.on("keyup", $.proxy(this.filter_tickets, this));
     if(this.$closeBtn) {
       this.$closeBtn.on("click", $.proxy(this.remove, this));
+    }
+
+    if(this.name != "") {
+      this.$top.on("mousedown", function() {
+        var position = _this.$container.position();
+        _this.$container.css({
+          position: "absolute",
+          top: position.top,
+          left: position.left
+        });
+      });
+      this.$top.on("mouseup", function() {
+        _this.$container.removeAttr("style");
+      });
     }
   }
 });

@@ -1,6 +1,7 @@
 #backlog {
   color: #555;
   margin-top:10px;
+  position: relative;
 }
 
 #backlog > div { 
@@ -16,6 +17,7 @@
   border-radius:5px 5px 0 0;
   padding: 10px;
   border-bottom:3px solid #AAA;
+  cursor: move;
 }
 
 #backlog #product-backlog { 
@@ -26,6 +28,7 @@
   color:#0066CC;
   background:#DFEEFD;
   border-color:#77BAFF;
+  cursor: default;
 }
 
 #backlog #product-backlog .top .hours { 
