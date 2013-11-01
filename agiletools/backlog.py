@@ -100,7 +100,7 @@ class BacklogModule(Component):
             add_stylesheet(req, "agiletools/css/backlog.css")
 
             script_data = { 
-                'milestones': Milestone.select_names_select2(self.env)
+                'milestones': Milestone.select_names_select2(self.env, include_complete=False)
                 }
 
             add_script_data(req, script_data)

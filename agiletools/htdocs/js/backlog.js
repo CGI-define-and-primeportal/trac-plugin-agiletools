@@ -1,6 +1,17 @@
 $(document).ready(function() {
-  window.formToken = $("#form input").val();
-  backlog = new Backlog("#content", ["", "milestone1"]);
+  initials = [""];
+  if(window.milestones) {
+    topLevel = window.milestones.results;
+    if(topLevel.length > 0) {
+      firstMilestone = topLevel[0];
+      initials.push(firstMilestone.text);
+      if(firstMilestone.children.length > 0) {
+        initials.push(firstMilestone.children[0].text);
+      }
+    }
+    window.formToken = $("#form input").val();
+    backlog = new Backlog("#content", initials);
+  }
 });
 
 var Backlog = LiveUpdater.extend({
