@@ -57,7 +57,7 @@ class TaskboardModule(Component):
 
         group_by = req.args.get("group", "status")
 
-        milestones = Milestone.select_names_select2(self.env)
+        milestones = Milestone.select_names_select2(self.env, include_complete=False)
         milestone = req.args.get("milestone")
         milestone_not_found = False
         if milestone:
