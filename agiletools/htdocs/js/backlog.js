@@ -456,8 +456,7 @@ var BacklogMilestone = Class.extend({
 
   multi_pick_start: function() {
     var _this = this,
-        offset = this.$tktWrap.offset().top,
-        maxHeight = this.$tktWrap.height();
+        offset = this.$tktWrap.offset().top;
 
     this.mp_manual = true;
     this.$tBody.sortable("disable");
@@ -467,8 +466,10 @@ var BacklogMilestone = Class.extend({
     this.$mpPlaceholder.insertBefore(this.$multiPick);
     this.$multiPick.addClass("dragging");
 
+    var maxHeight = this.$tktWrap.height() + this.mpMinHeight;
+
     $(window).on("mousemove", function(e) {
-      var height = Math.min(Math.max(0, e.pageY - offset), maxHeight) + _this.mpMinHeight;
+      var height = Math.min(Math.max(_this.mpMinHeight, e.pageY - offset + (1.5*_this.mpMinHeight)), maxHeight);
       _this.$multiPick.css("height", height);
     });
     $(window).one("mouseup", function() { _this.multi_pick_process() });
@@ -501,10 +502,10 @@ var BacklogMilestone = Class.extend({
 
       $("tr:visible", this.$tBody).each(function() {
         var ticket = $(this).data("_self"),
-            posToBottom = $(this).position().top - position + $(this).height(),
-            mpAdjustedHeight = height - (2*_this.mpMinHeight);
+            ticketBottom = $(this).position().top - position + $(this).height(),
+            mpAdjustedHeight = height - _this.mpMinHeight;
 
-        if(posToBottom > mpAdjustedHeight) return false;
+        if(ticketBottom > mpAdjustedHeight) return false;
         _this.selectedTickets[ticket.tData.id] = ticket;
       });
     }
