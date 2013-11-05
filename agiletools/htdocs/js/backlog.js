@@ -162,14 +162,15 @@ var BacklogMilestone = Class.extend({
     this.$container = $("<div></div>").appendTo(this.backlog.$container).data("_self", this);
     this.$top       = $("<div class='top'></div>").appendTo(this.$container);
 
-    this.$selectionControls = $("<div class='ticket-selection input-list'>").insertAfter(this.$stats);
+    this.$stats     =   $("<div class='hours'><i class='icon-spin icon-spinner'></i></div>").appendTo(this.$top);
+
+    this.$selectionControls = $("<div class='ticket-selection input-list'>").appendTo(this.$top);
     this.$moveTicketsBtn      = draw_button("chevron-right", "Move selected tickets to neighbouring milestone").addClass("hidden").appendTo(this.$selectionControls);
     this.$moveTicketsBtn.on("click", $.proxy(this.move_selection, this));
 
     this.$selectionToggleBtn  = draw_button("check", "Select all").appendTo(this.$selectionControls);
     this.selection_unselected();
 
-    this.$stats     =   $("<div class='hours'><i class='icon-spin icon-spinner'></i></div>").appendTo(this.$top);
     this.$title     =   $("<div class='title'></div>").appendTo(this.$top);
     this.$filter    = $("<input class='filter' type='text' placeholder='Filter Tickets...' />").appendTo(this.$container);
 
