@@ -470,6 +470,9 @@ var BacklogMilestone = Class.extend({
     var maxHeight = this.$tktWrap.height() + this.mpMinHeight;
 
     $(window).on("mousemove", function(e) {
+      $("body").attr('unselectable', 'on')
+               .css('user-select', 'none')
+               .on('selectstart', false);
       var height = Math.min(Math.max(_this.mpMinHeight, e.pageY - offset + (1.5*_this.mpMinHeight)), maxHeight);
       _this.$multiPick.css("height", height);
     });
@@ -492,6 +495,10 @@ var BacklogMilestone = Class.extend({
 
   multi_pick_process: function(all) {
     $(window).off("mousemove");
+    $("body").removeAttr('unselectable')
+             .removeAtte('style')
+             .off('selectstart');
+
     if(!all) {
       // Calculate tickets below picker level
       var _this = this,
