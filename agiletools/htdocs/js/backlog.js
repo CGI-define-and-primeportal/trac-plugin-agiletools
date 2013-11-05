@@ -50,10 +50,11 @@ var Backlog = LiveUpdater.extend({
     });
 
     this.$container.sortable({
-      handle: ".top",
+      handle: ".top .title",
       items: "> *:not(#product-backlog)",
       stop: function(e, ui) {
         ui.item.removeAttr("style");
+        _this.set_multi_picks();
       }
     });
   },
@@ -74,6 +75,19 @@ var Backlog = LiveUpdater.extend({
     this.add_remove_milestone();
   },
 
+  set_multi_picks: function() {
+    var _this = this;
+    $("> div", this.$container).each(function(i, elem) {
+      var milestone = $(elem).data("_self");
+      if(i + 1 < _this.length) {
+        milestone.multi_pick_enable();
+      }
+      else {
+        milestone.multi_pick_disable();
+      }
+    });
+  },
+
   _remove_ticket_references: function(ticket) {
     delete this.tickets[ticket.tData.id];
   },
@@ -81,6 +95,7 @@ var Backlog = LiveUpdater.extend({
   add_remove_milestone: function() {
     this.set_spans();
     this.refresh_sortables();
+    this.set_multi_picks();
   },
 
   remove_ticket: function(ticket) {
@@ -91,8 +106,8 @@ var Backlog = LiveUpdater.extend({
   move_ticket: function(ticket, from, to) {
     from._remove_ticket_references(ticket);
     to._add_ticket_references(ticket);
-    from.set_stats();
-    to.set_stats();
+    from.set_stats(false);
+    to.set_stats(false);
   },
 
   refresh_sortables: function() {
@@ -137,23 +152,41 @@ var BacklogMilestone = Class.extend({
   },
 
   draw: function() {
-    this.$container = $("<div></div>").appendTo(this.backlog.$container);
+
+    function draw_button(icon, tooltip_title) {
+      return $("<div class='btn' title='"+ tooltip_title + "'><i class='icon-" + icon + "'></i></div>").tooltip({
+        container: "body"
+      });
+    }
+
+    this.$container = $("<div></div>").appendTo(this.backlog.$container).data("_self", this);
     this.$top       = $("<div class='top'></div>").appendTo(this.$container);
+
+    this.$selectionControls = $("<div class='ticket-selection input-list'>").insertAfter(this.$stats);
+    this.$moveTicketsBtn      = draw_button("chevron-right", "Move selected tickets to neighbouring milestone").addClass("hidden").appendTo(this.$selectionControls);
+    this.$moveTicketsBtn.on("click", $.proxy(this.move_selection, this));
+
+    this.$selectionToggleBtn  = draw_button("check", "Select all").appendTo(this.$selectionControls);
+    this.selection_unselected();
+
     this.$stats     =   $("<div class='hours'><i class='icon-spin icon-spinner'></i></div>").appendTo(this.$top);
     this.$title     =   $("<div class='title'></div>").appendTo(this.$top);
     this.$filter    = $("<input class='filter' type='text' placeholder='Filter Tickets...' />").appendTo(this.$container);
-    
+
+    this.$multiPick = $("<div class='multi-pick'></div>").appendTo(this.$container);
     this.$tktWrap   = $("<div class='tickets-wrap'></div>").appendTo(this.$container)
     this.$table       = $("<table class='tickets'></table>").appendTo(this.$tktWrap);
     this.$tBody         =   $("<tbody><tr><td class='wait'><i class='icon-spin icon-spinner'></i></td></tr></tbody>").appendTo(this.$table);
     this.$tBody.data("_self", this);
 
+    // Not always in DOM
+    this.$mpPlaceholder = $("<div class='multi-pick-placeholder'></div>");
+
     if(this.name == "") {
       this.$container.attr("id", "product-backlog");
     }
     else {
-      this.$closeBtn = $("<div class='right btn btn-mini'><i class='icon-remove'></i></div>")
-                          .prependTo(this.$top).tooltip({ title: "Close", container: "body" });
+      this.$closeBtn = draw_button("remove", "Close milestone").addClass("right").prependTo(this.$top);
     }
   },
 
@@ -161,8 +194,9 @@ var BacklogMilestone = Class.extend({
     this.$title.text(this.name == "" ? "Product Backlog" : this.name);
   },
 
-  get_tickets: function(tickets) {
+  get_tickets: function() {
     var _this = this;
+    this.$tBody.html("");
     this.xhr = $.ajax({
       data: { "milestone": this.name },
       success: function(data, textStatus, jqXHR) {
@@ -172,10 +206,16 @@ var BacklogMilestone = Class.extend({
           }
         }
         if(_this.length == 0) _this.set_empty_message();
-        _this.set_stats();
+        _this.set_stats(false);
         _this.set_sortable();
       }
     });
+  },
+
+  refresh: function() {
+    this.multi_pick_stop();
+    this.remove_all_tickets();
+    this.get_tickets();
   },
 
   add_ticket: function(tData) {
@@ -196,11 +236,23 @@ var BacklogMilestone = Class.extend({
     this.length --;
   },
 
-  set_stats: function() {
+  set_stats: function(fromSelection) {
+    if(fromSelection) {
+      var hours = 0,
+          tickets = 0;
+      for(var selectedId in this.selectedTickets) {
+        tickets ++;
+        hours += this.selectedTickets[selectedId].tData.hours;
+      }
+    }
+    else {
+      var hours = this.total_hours,
+          tickets = this.length;
+    }
     this.$stats.html(
-      "<i class='icon-ticket'></i> " + this.length +
-      "<i class='margin-left-small icon-time'></i> " + pretty_time(this.total_hours)
-    );
+      "<i class='icon-ticket'></i> " + tickets +
+      "<i class='margin-left-small icon-time'></i> " + pretty_time(hours)
+    ).toggleClass("selection", fromSelection);
   },
 
   set_empty_message: function() {
@@ -272,6 +324,7 @@ var BacklogMilestone = Class.extend({
   },
 
   _do_filter: function() {
+    this.multi_pick_stop();
     var query = $.trim(this.$filter.val().toLowerCase());
 
     // Empty query, don't do anything
@@ -377,36 +430,186 @@ var BacklogMilestone = Class.extend({
   },
 
   remove: function() {
-    this.xhr.abort(); // Stop loading new tickets
-    for(var ticket in this.tickets) {
-      this.tickets[ticket].remove();
-    }
+    this.remove_all_tickets();
     this.backlog._remove_milestone_references(this);
     if(this.$closeBtn) this.$closeBtn.tooltip("destroy");
     this.$container.remove();
     clearTimeout(this.filterTimeout);
   },
 
-  events: function() {
-    var _this = this;
+  remove_all_tickets: function() {
+    this.xhr.abort(); // Stop loading new tickets
+    for(var ticket in this.tickets) {
+      this.tickets[ticket].remove();
+    }
+  },
 
-    this.$filter.on("keyup", $.proxy(this.filter_tickets, this));
-    if(this.$closeBtn) {
-      this.$closeBtn.on("click", $.proxy(this.remove, this));
+  multi_pick_enable: function() {
+    this.$multiPick.removeClass("hidden");
+    this.$selectionControls.removeClass("hidden");
+  },
+
+  multi_pick_disable: function() {
+    this.$multiPick.addClass("hidden");
+    this.$selectionControls.addClass("hidden");
+  },
+
+  multi_pick_start: function() {
+    var _this = this,
+        offset = this.$tktWrap.offset().top,
+        maxHeight = this.$tktWrap.height();
+
+    this.mp_manual = true;
+    this.$tBody.sortable("disable");
+
+    if(!this.mpMinHeight) this.mpMinHeight = this.$multiPick.height();
+
+    this.$mpPlaceholder.insertBefore(this.$multiPick);
+    this.$multiPick.addClass("dragging");
+
+    $(window).on("mousemove", function(e) {
+      var height = Math.min(Math.max(0, e.pageY - offset), maxHeight) + _this.mpMinHeight;
+      _this.$multiPick.css("height", height);
+    });
+    $(window).one("mouseup", function() { _this.multi_pick_process() });
+  },
+
+  /* Picking all resembles the multi-pick functionality (move our toggle to the bottom) */
+  multi_pick_all: function() {
+    var _this = this,
+        mpHeight = this.$multiPick.height(),
+        totalHeight = this.$tktWrap.height() + mpHeight;
+
+    this.mpMinHeight = mpHeight;
+
+    this.$tktWrap.scrollTop(this.$table.height());
+    this.$mpPlaceholder.insertBefore(this.$multiPick);
+    this.$multiPick.addClass("dragging").css("height", totalHeight);
+    this.multi_pick_process(true);
+  },
+
+  multi_pick_process: function(all) {
+    $(window).off("mousemove");
+    if(!all) {
+      // Calculate tickets below picker level
+      var _this = this,
+          height = this.$multiPick.height(),
+          position = this.$tktWrap.position().top,
+          depth = height + this.mpMinHeight + this.$tktWrap.scrollTop();
+
+      this.selectedTickets = {};
+
+      $("tr:visible", this.$tBody).each(function() {
+        var ticket = $(this).data("_self"),
+            posToBottom = $(this).position().top - position + $(this).height(),
+            mpAdjustedHeight = height - (2*_this.mpMinHeight);
+
+        if(posToBottom > mpAdjustedHeight) return false;
+        _this.selectedTickets[ticket.tData.id] = ticket;
+      });
     }
 
-    if(this.name != "") {
-      this.$top.on("mousedown", function() {
-        var position = _this.$container.position();
-        _this.$container.css({
-          position: "absolute",
-          top: position.top,
-          left: position.left
+    else {
+      this.selectedTickets = this.tickets;
+    }
+
+    this.selection_selected();
+    this.set_stats(true);
+
+    this.$moveTicketsBtn.removeClass("hidden");
+  },
+
+  multi_pick_stop: function(e) {
+    // When we select all we scroll to the bottom of the page
+    // But we don't want that to stop the multi pick
+    // This is the best fix I could think of for stackoverflow.com/questions/19766675/
+    var event_type = e ? e.type : undefined;
+    if(!(event_type == "scroll" && !this.mp_manual)) {
+      $(window).off("mousemove");
+      this.$moveTicketsBtn.addClass("hidden");
+      this.$mpPlaceholder.remove();
+      this.$multiPick.removeAttr("style").removeClass("dragging");
+      this.$tBody.sortable("enable");
+      this.set_stats(false);
+      this.selection_unselected();
+      delete this.selectedTickets;
+    }
+  },
+
+  selection_selected: function() {
+    this.$selectionToggleBtn.html("<i class='icon-check'></i>")
+                            .off("click")
+                            .on("click", $.proxy(this.multi_pick_stop, this))
+                            .attr("data-original-title", "Remove selection")
+                            .tooltip("fixTitle");
+  },
+
+  selection_unselected: function() {
+    this.mp_manual = false;
+    this.$selectionToggleBtn.html("<i class='icon-check-empty'></i>")
+                            .off("click")
+                            .on("click", $.proxy(this.multi_pick_all, this))
+                            .attr("data-original-title", "Select all")
+                            .tooltip("fixTitle");
+  },
+
+  move_selection: function() {
+    var $moveIcon = $("i", this.$moveTicketsBtn);
+    if(!$moveIcon.hasClass("icon-spinner")) {
+      $moveIcon.attr("class", "icon-spin icon-spinner");
+      var _this = this,
+          ticketChangetimes = [],
+          ticketIds = [],
+          neighbour = this.$container.next().data("_self");
+
+      if(neighbour) {
+        for(var selectedId in this.selectedTickets) {
+          var ticket = this.selectedTickets[selectedId];
+          ticketChangetimes.push(ticket.tData.changetime);
+          ticketIds.push(ticket.tData.id);
+        }
+        $.ajax({
+          type: "POST",
+          data: {
+            '__FORM_TOKEN': window.formToken,
+            'tickets': ticketIds.join(","),
+            'changetimes': ticketChangetimes.join(","),
+            'milestone': neighbour.name
+          },
+          success: function(data, textStatus, jqXHR) {
+            neighbour.refresh();
+            _this.refresh();
+            _this.mp_running = false;
+            $moveIcon.attr("class", "icon-chevron-right hidden");
+          }
         });
-      });
-      this.$top.on("mouseup", function() {
-        _this.$container.removeAttr("style");
-      });
+      }
+    }
+  },
+
+  sortable_before: function() {
+    this.backlog.$_to_cancel = this.$container;
+    var position = this.$container.position();
+    this.$container.css({
+      position: "absolute",
+      top: position.top,
+      left: position.left
+    });
+  },
+
+  sortable_cancel: function() {
+    this.backlog.$_to_cancel.removeAttr("style");
+  },
+
+  events: function() {
+    this.$filter.on("keyup", $.proxy(this.filter_tickets, this));
+    this.$multiPick.on("mousedown", $.proxy(this.multi_pick_start, this));
+    this.$tktWrap.on("scroll", $.proxy(this.multi_pick_stop, this));
+    if(this.$closeBtn) this.$closeBtn.on("click", $.proxy(this.remove, this));
+
+    if(this.name != "") {
+      this.$title.on("mousedown", $.proxy(this.sortable_before, this));
+      this.$title.on("mouseup", $.proxy(this.sortable_cancel, this));
     }
   }
 });

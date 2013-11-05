@@ -39,6 +39,7 @@ class BacklogModule(Component):
                 direction = req.args.get("relative_direction")
                 milestone = req.args.get("milestone")
 
+                # Moving a single ticket position (and milestone)
                 if str_ticket:
                     try:
                         int_ticket = int(str_ticket)
@@ -47,7 +48,6 @@ class BacklogModule(Component):
                         return self._json_errors(req, ["Invalid arguments"])
 
                     try:
-
                         ticket = Ticket(self.env, int_ticket)
                     except ResourceNotFound:
                         return self._json_errors(req, ["Not a valid ticket"])
@@ -68,6 +68,35 @@ class BacklogModule(Component):
                         ats.move(int_ticket, position, author=req.authname)
 
                     self._json_send(req, {'success': True})
+
+                # Dropping multiple tickets into a milestone
+                elif all (k in req.args for k in ("tickets", "milestone", "changetimes")):
+
+                    changetimes = req.args["changetimes"].split(",")
+                    milestone = req.args["milestone"]
+
+                    try:
+                        ids = [int(tkt_id) for tkt_id in req.args["tickets"].split(",")]
+                    except (ValueError, TypeError):
+                        return self._json_errors(req, ["Invalid arguments"])
+
+                    if len(ids) == len(changetimes):
+                        for i, int_ticket in enumerate(ids):
+                            # Valid ticket
+                            try:
+                                ticket = Ticket(self.env, int_ticket)
+                            except ResourceNotFound:
+                                return self._json_errors(req, ["Not a valid ticket"])
+                            # Can be saved
+                            try:
+                                self._save_ticket(req, ticket, milestone, ts=changetimes[i])
+                            except ValueError as e:
+                                return self._json_errors(req, e.message)
+
+                        return self._json_send(req, {'success': True})
+
+                    else:
+                        return self._json_errors(req, ["Invalid arguments"])
 
                 else:
                     self._json_errors(req, ["Must provide a ticket"])
@@ -158,11 +187,15 @@ class BacklogModule(Component):
 
         return tickets
 
-    def _save_ticket(self, req, ticket, milestone):
+    def _save_ticket(self, req, ticket, milestone, ts=None):
         @self.env.with_transaction()
         def do_save(db):
             tm = TicketModule(self.env)
             req.args["milestone"] = milestone
+
+            if ts:
+                req.args["ts"] = ts
+                
             tm._populate(req, ticket, plain_fields=True)
 
             changes, problems = tm.get_ticket_changes(req, ticket, "btn_save")
