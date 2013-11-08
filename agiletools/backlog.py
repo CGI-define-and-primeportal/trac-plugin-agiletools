@@ -11,11 +11,12 @@ from trac.ticket.model import Ticket, Milestone
 from trac.ticket.api import TicketSystem
 from trac.ticket.web_ui import TicketModule
 from trac.util.presentation import to_json
-from trac.web.chrome import Chrome
 from logicaordertracker.controller import LogicaOrderController, Operation
 from pkg_resources import resource_filename
 from datetime import datetime
 from trac.util.datefmt import to_utimestamp, utc
+from trac.web.session import DetachedSession
+
 import re
 
 class BacklogModule(Component):
@@ -159,7 +160,6 @@ class BacklogModule(Component):
     # Own methods
     def _get_ticket_data(self, req, fields, results):
         ats = AgileToolsSystem(self.env)
-        chrome = Chrome(self.env)
         tickets = []
         for result in results:
             filtered_result = dict((k, v)
@@ -175,11 +175,14 @@ class BacklogModule(Component):
             else:
                 hours = 0
 
+            reporter = filtered_result["reporter"]
+            session = DetachedSession(self.env, reporter)
+
             filtered_result.update({
                 'id': result['id'],
                 'position': ats.position(result['id']),
                 'hours': hours,
-                'reporter': chrome.authorinfo(req, filtered_result["reporter"]),
+                'reporter': session.get('name', reporter),
                 'changetime': to_utimestamp(filtered_result['changetime'])
                 })
 
