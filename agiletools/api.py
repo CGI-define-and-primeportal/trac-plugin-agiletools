@@ -79,7 +79,7 @@ class AgileToolsSystem(Component):
         # When we insert a ticket at a position, we often want it to be 
         # relative to another ticket. This method allows us to ensure that
         # our relative ticket _always_ has an explicit position
-        if generate and not position:
+        if generate and position is None:
 
             cursor.execute("SELECT MAX(position) FROM ticket_positions")
             last = cursor.fetchone()
