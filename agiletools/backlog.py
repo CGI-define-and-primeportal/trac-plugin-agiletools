@@ -8,16 +8,13 @@ from trac.web.chrome import (ITemplateProvider, add_script, add_stylesheet,
                              add_script_data)
 from trac.ticket.query import Query
 from trac.ticket.model import Ticket, Milestone
-from trac.ticket.api import TicketSystem
 from trac.ticket.web_ui import TicketModule
 from trac.util.presentation import to_json
-from logicaordertracker.controller import LogicaOrderController, Operation
 from pkg_resources import resource_filename
 from datetime import datetime
 from trac.util.datefmt import to_utimestamp, utc
 from trac.web.session import DetachedSession
 
-import re
 
 class BacklogModule(Component):
     implements(IRequestHandler, ITemplateProvider, IRequestFilter)
