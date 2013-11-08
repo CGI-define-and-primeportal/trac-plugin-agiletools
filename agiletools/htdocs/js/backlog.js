@@ -504,7 +504,7 @@ var BacklogMilestone = LiveUpdater.extend({
   multi_pick_process: function(all) {
     $(window).off("mousemove");
     $("body").removeAttr('unselectable')
-             .removeAtte('style')
+             .removeAttr('style')
              .off('selectstart');
 
     if(!all) {
