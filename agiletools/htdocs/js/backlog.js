@@ -239,6 +239,7 @@ var BacklogMilestone = LiveUpdater.extend({
         if(_this.length == 0) _this.set_empty_message();
         _this.set_stats(false);
         _this.set_sortable();
+        _this._do_filter();
       }
     });
   },
@@ -519,6 +520,10 @@ var BacklogMilestone = LiveUpdater.extend({
     var _this = this,
         mpHeight = this.$multiPick.height(),
         totalHeight = this.$tktWrap.height() + mpHeight;
+
+    // Make it clear that this is always all, regardless of filter
+    this.$filter.val("");
+    this._do_filter();
 
     this.mpMinHeight = mpHeight;
 
