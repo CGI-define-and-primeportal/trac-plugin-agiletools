@@ -14,7 +14,7 @@ $(document).ready(function() {
   }
 });
 
-var Backlog = LiveUpdater.extend({
+var Backlog = Class.extend({
 
   init: function(appendTo, initialMilestones) {
     this.appendTo = appendTo;
@@ -135,7 +135,7 @@ var Backlog = LiveUpdater.extend({
 
 });
 
-var BacklogMilestone = Class.extend({
+var BacklogMilestone = LiveUpdater.extend({
 
   init: function(backlog, name) {
     this.backlog = backlog;
@@ -147,6 +147,14 @@ var BacklogMilestone = Class.extend({
     this.length = 0;
     this.tickets = {};
     this.get_tickets();
+
+    // TODO make normal updates work normally
+    // Complete refresh every 10 minutes
+    this.init_updates({
+      dt: { "milestone": this.name },
+      interval: 600,
+      fullRefreshAfter: 1
+    });
 
     this.events();
   },
