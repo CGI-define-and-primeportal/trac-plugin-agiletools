@@ -34,6 +34,24 @@ var Backlog = Class.extend({
     this.$controls  = $("<div id='backlog-controls'></div>").appendTo(this.appendTo);
     this.$select      = $("<input type='hidden' />").appendTo(this.$controls);
     this.$container = $("<div id='backlog' class='row-fluid'></div>").appendTo(this.appendTo);
+    this.$failDialog = $("<div id='fail-dialog'>" +
+                          "Failed to move ticket(s) for the following reasons:" +
+                          "<ul></ul>" +
+                        "</div>").appendTo(this.appendTo);
+
+    this.$failDialog.dialog({
+      modal: true,
+      autoOpen: false,
+      title: "Failed to save ticket(s)",
+      close: function() {
+        var ticket = $(this).data("_obj");
+        if(ticket) ticket.revert_error.apply(ticket);
+        $(this).removeData("_obj");
+      },
+      buttons: {
+        Close: function() { $(this).dialog("close"); }
+      }
+    });
 
     var _this = this;
     this.$select.select2({
@@ -172,7 +190,11 @@ var BacklogMilestone = LiveUpdater.extend({
 
     this.$stats     =   $("<div class='hours'><i class='icon-spin icon-spinner'></i></div>").appendTo(this.$top);
 
-    this.$selectionControls = $("<div class='ticket-selection input-list'>").appendTo(this.$top);
+    this.$selectionControls = $("<div class='ticket-selection'>").appendTo(this.$top);
+
+    this.$mpErrorBtn          = draw_button("exclamation-sign color-warning", "View errors").addClass("hidden").appendTo(this.$selectionControls);
+    this.$mpErrorBtn.on("click", $.proxy(this.multi_pick_show_errors_msg, this));
+
     this.$moveTicketsBtn      = draw_button("chevron-right", "Move selected tickets to neighbouring milestone").addClass("hidden").appendTo(this.$selectionControls);
     this.$moveTicketsBtn.on("click", $.proxy(this.move_selection, this));
 
@@ -265,7 +287,7 @@ var BacklogMilestone = LiveUpdater.extend({
   },
 
   set_empty_message: function() {
-    this.$tBody.html("<tr class='none'><td>No tickets</td></tr>");
+    this.$tBody.html("<tr class='none ui-state-disabled'><td>No tickets</td></tr>");
   }, 
 
   clear_empty_message: function() {
@@ -274,6 +296,7 @@ var BacklogMilestone = LiveUpdater.extend({
 
   set_sortable: function() {
     this.$tBody.sortable({
+      items: "> tr:not(.ui-state-disabled)",
       connectWith: ".tickets tbody",
       start: function(event, ui) {
         ui.item.data("index", $("tr", ui.item.parent()).index(ui.item));
@@ -292,6 +315,10 @@ var BacklogMilestone = LiveUpdater.extend({
         }
       }
     });
+  },
+
+  refresh_sortables: function() {
+    this.$tBody.sortable("refreshPositions");
   },
 
   _filter_map: {
@@ -516,7 +543,7 @@ var BacklogMilestone = LiveUpdater.extend({
 
       this.selectedTickets = {};
 
-      $("tr:visible", this.$tBody).each(function() {
+      $("tr:visible:not(.ui-state-disabled)", this.$tBody).each(function() {
         var ticket = $(this).data("_self"),
             ticketBottom = $(this).position().top - position + $(this).height(),
             mpAdjustedHeight = height - _this.mpMinHeight;
@@ -551,6 +578,33 @@ var BacklogMilestone = LiveUpdater.extend({
       this.selection_unselected();
       delete this.selectedTickets;
     }
+  },
+
+  multi_pick_show_errors: function(errors) {
+    this._errors = errors;
+    this.$mpErrorBtn.removeClass("hidden");
+  },
+
+  multi_pick_show_errors_msg: function() {
+    var errors = this._errors || [],
+        $list = $("ul", this.backlog.$failDialog).html("");
+
+    this.backlog.$failDialog.data("_obj", this).dialog("open");
+    for(var i = 0; i < this._errors.length; i ++) {
+      var ticketId = this._errors[i][0],
+          ticketErrors = this._errors[i][1],
+          $tErrors = $("<li>Errors for ticket #"+ ticketId + "</li>").appendTo($list);
+          $tList = $("<ul></ul>").appendTo($tErrors);
+
+      for(var j = 0; j < ticketErrors.length; j ++) {
+        $tList.append("<li>" + ticketErrors[j] + "</li>");
+      }
+    }
+  },
+
+  revert_error: function() {
+    delete this._errors;
+    this.$mpErrorBtn.addClass("hidden");
   },
 
   selection_selected: function() {
@@ -594,6 +648,9 @@ var BacklogMilestone = LiveUpdater.extend({
             'milestone': neighbour.name
           },
           success: function(data, textStatus, jqXHR) {
+            if(data.hasOwnProperty("errors")) {
+              _this.multi_pick_show_errors(data.errors);
+            }
             neighbour.refresh();
             _this.refresh();
             _this.mp_running = false;
@@ -652,13 +709,54 @@ var MilestoneTicket = Class.extend({
       "<td class='id'>#" + this.tData.id + "</td>" +
       "<td class='summary'>" +
         "<a href='" + window.tracBaseUrl + "ticket/" + this.tData.id + "'>"
-          + this.tData.summary + 
+          + this.tData.summary +
         "</a>" +
       "</td>" +
-      "<td class='hours'>" + pretty_time(this.tData.hours) + "</td>" +
     "</tr>");
 
+    this.$hoursFeedback = $("<td class='hours'></td>").appendTo(this.$container);
+    this.$hours          = $("<span>" + pretty_time(this.tData.hours) + "</span>").appendTo(this.$hoursFeedback);
+    this.$feedback        = $("<i class='hidden'></i>").appendTo(this.$hoursFeedback);
+
     this.$container.appendTo(this.milestone.$tBody).data("_self", this);
+  },
+
+  show_wait: function() {
+    this.$hours.addClass("hidden");
+    this.$feedback.attr("class", "icon-spin icon-spinner");
+  },
+
+  hide_wait: function() {
+    this.$hours.removeClass("hidden");
+    this.$feedback.attr("class", "hidden");
+  },
+
+  show_error: function(errors, tmpParent) {
+    this._errors = errors || [];
+    // Stop user from moving ticket further
+    this.$container.addClass("ui-state-disabled");
+    tmpParent.refresh_sortables();
+    this.$hours.addClass("hidden");
+    this.$feedback.attr("class", "icon-exclamation-sign color-warning");
+  },
+
+  show_error_msg: function() {
+    if(this.$feedback.hasClass("icon-exclamation-sign")) {
+      this.backlog.$failDialog.dialog("open").data("_obj", this);
+      var $list = $("ul", this.backlog.$failDialog).html("");
+      for(var i = 0; i < this._errors.length; i ++) {
+        $list.append("<li>" + this._errors[i] + "</li>");
+      }
+    }
+  },
+
+  // Remove the error message and put the back in last legitimate position
+  revert_error: function() {
+    var $milestoneTickets = $("tr:not(.none)", this.milestone.$tBody);
+    $milestoneTickets.eq(this.$container.data("index")).before(this.$container);
+    this.$container.removeClass("ui-state-disabled");
+    this.milestone.refresh_sortables();
+    this.hide_wait();
   },
 
   save_changes: function() {
@@ -671,6 +769,8 @@ var MilestoneTicket = Class.extend({
           'ticket': this.tData.id,
           'ts': this.tData['changetime']
         };
+
+    this.show_wait();
 
     if($next.length) {
       data['relative_direction'] = "before";
@@ -689,9 +789,24 @@ var MilestoneTicket = Class.extend({
       type: "POST",
       data: data,
       success: function(data, textStatus, jqXHR) {
-        if(data.hasOwnProperty("success")) {
+        if(data.hasOwnProperty("tickets")) {
           _this.backlog.move_ticket(_this, _this.milestone, newParent);
+
+          // Set empty message if the last ticket moved out of group
+          if(_this.milestone.length == 0) {
+            _this.milestone.set_empty_message();
+            _this.backlog.refresh_sortables();
+          }
+
           _this.milestone = newParent;
+          // Update ticket data with new timestamp
+          if(data.tickets.length == 1) _this.tData = data.tickets[0];
+        }
+        if(!data.hasOwnProperty("errors")) {
+          _this.hide_wait();
+        }
+        else {
+          _this.show_error(data.errors, newParent);
         }
       }
     })
@@ -702,6 +817,7 @@ var MilestoneTicket = Class.extend({
   },
 
   events: function() {
+    this.$feedback.on("click", $.proxy(this.show_error_msg, this));
     this.$container.on("mousedown", function() {
       $("td", this).each(function() {
         $(this).width($(this).width());

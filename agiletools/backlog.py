@@ -22,6 +22,9 @@ import re
 class BacklogModule(Component):
     implements(IRequestHandler, ITemplateProvider, IRequestFilter)
 
+    fields = ("summary", "type", "component", "priority", "priority_value", 
+              "changetime", "reporter", "estimatedhours")
+
     #IRequestHandler methods
     def match_request(self, req):
         return req.path_info == "/backlog"
@@ -53,10 +56,15 @@ class BacklogModule(Component):
                     except ResourceNotFound:
                         return self._json_errors(req, ["Not a valid ticket"])
 
+                    response = {}
+
                     # Change ticket's milestone
                     if milestone is not None:
                         try:
                             self._save_ticket(req, ticket, milestone)
+                            query = Query(self.env, constraints={'id': [str(int_ticket)]}, cols=self.fields)
+                            results = query.execute(req)
+                            response['tickets'] = self._get_ticket_data(req, results)
                         except ValueError as e:
                             return self._json_errors(req, e.message)
 
@@ -67,8 +75,9 @@ class BacklogModule(Component):
                             position += 1
 
                         ats.move(int_ticket, position, author=req.authname)
+                        response['success'] = True
 
-                    self._json_send(req, {'success': True})
+                    return self._json_send(req, response)
 
                 # Dropping multiple tickets into a milestone
                 elif all (k in req.args for k in ("tickets", "milestone", "changetimes")):
@@ -81,48 +90,58 @@ class BacklogModule(Component):
                     except (ValueError, TypeError):
                         return self._json_errors(req, ["Invalid arguments"])
 
+                    unique_errors = 0
+                    errors_by_ticket = []
+                    # List of [<ticket_id>, [<error>, ...]] lists
                     if len(ids) == len(changetimes):
                         for i, int_ticket in enumerate(ids):
                             # Valid ticket
                             try:
                                 ticket = Ticket(self.env, int_ticket)
                             except ResourceNotFound:
-                                return self._json_errors(req, ["Not a valid ticket"])
+                                errors_by_ticket.append([int_ticket, ["Not a valid ticket"]])
                             # Can be saved
                             try:
                                 self._save_ticket(req, ticket, milestone, ts=changetimes[i])
                             except ValueError as e:
-                                return self._json_errors(req, e.message)
-
-                        return self._json_send(req, {'success': True})
-
+                                # Quirk: all errors amalgomated into single
+                                # we keep track of count at each time so that
+                                # we can split the list up to errors by
+                                # individual tickets
+                                errors_by_ticket.append([int_ticket, e.message[unique_errors:]])
+                                unique_errors = len(e.message)
+                                if len(errors_by_ticket) > 5:
+                                    errors_by_ticket.append("More than 5 tickets failed "
+                                                            "validation, stopping.")
+                                    break
+                        if errors_by_ticket:
+                            return self._json_errors(req, errors_by_ticket)
+                        else:
+                            # Client side makes additional request for all
+                            # tickets after this
+                            return self._json_send(req, {'success': True})
                     else:
                         return self._json_errors(req, ["Invalid arguments"])
-
                 else:
-                    self._json_errors(req, ["Must provide a ticket"])
-                    return
-
+                    return self._json_errors(req, ["Must provide a ticket"])
             else:
-
-                fields = ("summary", "type", "component", "priority",
-                      "priority_value", "changetime", "reporter",
-                      "estimatedhours")
-
+                # TODO make client side compatible with live updates
                 milestone = req.args.get("milestone")
+                from_iso = req.args.get("from")
+                to_iso = req.args.get("to")
 
-                # Do complete milestone request
                 if milestone is not None:
-                    con = { 'milestone': [milestone] }
-                    query = Query(self.env, constraints=con, cols=fields, max=0)
+                    # Requesting an update
+                    constr = { 'milestone': [milestone] }
+                    if from_iso and to_iso:
+                        constr['changetime'] = [from_iso + ".." + to_iso]
+
+                    query = Query(self.env, constraints=constr, cols=self.fields, max=0)
                     results = query.execute(req)
-                    tickets = self._get_ticket_data(req, fields, results)
+                    tickets = self._get_ticket_data(req, results)
                     self._json_send(req, {'tickets': tickets})
                 else:
-                    # Get an update from between two points
-                    from_iso = req.args.get("from")
-                    to_iso = req.args.get("to")
-                    self.json_send(req, {'success': True})
+                    self._json_errors(req, ["Invalid arguments"])
 
         else:
             add_script(req, "agiletools/js/update_model.js")
@@ -158,13 +177,13 @@ class BacklogModule(Component):
         return [resource_filename(__name__, 'templates')]
 
     # Own methods
-    def _get_ticket_data(self, req, fields, results):
+    def _get_ticket_data(self, req, results):
         ats = AgileToolsSystem(self.env)
         tickets = []
         for result in results:
             filtered_result = dict((k, v)
                                for k, v in result.iteritems()
-                               if k in fields)
+                               if k in self.fields)
 
             if "estimatedhours" in filtered_result:
                 try:
