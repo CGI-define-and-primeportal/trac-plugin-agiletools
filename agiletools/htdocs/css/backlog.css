@@ -151,12 +151,12 @@
 #backlog .tickets td {
   border:none;
   border-top:1px solid #DDD;
-  cursor: move;
   padding: 5px;
   vertical-align: middle;
 }
 
-#backlog .tickets tr.ui-state-disabled td { cursor:auto; }
+#backlog .ui-sortable td { cursor:move; }
+#backlog .ui-sortable tr.ui-state-disabled td { cursor:auto; }
 
 #backlog .tickets .ui-sortable-disabled td {
   cursor: auto;

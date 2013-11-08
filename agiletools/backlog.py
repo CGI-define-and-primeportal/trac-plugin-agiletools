@@ -27,13 +27,17 @@ class BacklogModule(Component):
         return req.path_info == "/backlog"
 
     def process_request(self, req):
-        req.perm.assert_permission('TICKET_VIEW')
+
+        req.perm.assert_permission('BACKLOG_VIEW')
 
         ats = AgileToolsSystem(self.env)
 
         if req.get_header('X-Requested-With') == 'XMLHttpRequest':
 
             if req.method == "POST":
+
+                if not req.perm.has_permission("BACKLOG_ADMIN"):
+                    return self._json_errors(req, ["BACKLOG_ADMIN permission required"])
 
                 str_ticket= req.args.get("ticket")
                 str_relative = req.args.get("relative", 0)
@@ -146,7 +150,8 @@ class BacklogModule(Component):
             add_stylesheet(req, "agiletools/css/backlog.css")
 
             script_data = { 
-                'milestones': Milestone.select_names_select2(self.env, include_complete=False)
+                'milestones': Milestone.select_names_select2(self.env, include_complete=False),
+                'backlogAdmin': req.perm.has_permission("BACKLOG_ADMIN")
                 }
 
             add_script_data(req, script_data)
@@ -162,7 +167,9 @@ class BacklogModule(Component):
         return handler
 
     def post_process_request(self, req, template, data, content_type):
-        if req.path_info == "/query" and data.get("dynamic_order"):
+        if req.path_info == "/query" \
+                and data.get("dynamic_order") \
+                and req.perm.has_permission("BACKLOG_ADMIN"):
             add_script(req, "agiletools/js/backlog_query.js")
         return (template, data, content_type)
 

@@ -10,18 +10,19 @@ $(document).ready(function() {
       }
     }
     window.formToken = $("#form input").val();
-    backlog = new Backlog("#content", initials);
+    backlog = new Backlog("#content", initials, window.backlogAdmin);
   }
 });
 
 var Backlog = Class.extend({
 
-  init: function(appendTo, initialMilestones) {
+  init: function(appendTo, initialMilestones, editable) {
     this.appendTo = appendTo;
     this.draw();
     this.length = 0;
     this.milestones = {};
     this.tickets = {};
+    this.editable = editable || false;
 
     for(var i = 0; i < initialMilestones.length; i ++) {
       this.add_milestone(initialMilestones[i]);
@@ -94,6 +95,9 @@ var Backlog = Class.extend({
   },
 
   set_multi_picks: function() {
+    // Readonly version
+    if(!this.editable) return;
+
     var _this = this;
     $("> div", this.$container).each(function(i, elem) {
       var milestone = $(elem).data("_self");
@@ -190,28 +194,32 @@ var BacklogMilestone = LiveUpdater.extend({
 
     this.$stats     =   $("<div class='hours'><i class='icon-spin icon-spinner'></i></div>").appendTo(this.$top);
 
-    this.$selectionControls = $("<div class='ticket-selection'>").appendTo(this.$top);
+    if(this.backlog.editable) {
+      this.$selectionControls = $("<div class='ticket-selection'>").appendTo(this.$top);
 
-    this.$mpErrorBtn          = draw_button("exclamation-sign color-warning", "View errors").addClass("hidden").appendTo(this.$selectionControls);
-    this.$mpErrorBtn.on("click", $.proxy(this.multi_pick_show_errors_msg, this));
+      this.$mpErrorBtn          = draw_button("exclamation-sign color-warning", "View errors").addClass("hidden").appendTo(this.$selectionControls);
+      this.$mpErrorBtn.on("click", $.proxy(this.multi_pick_show_errors_msg, this));
 
-    this.$moveTicketsBtn      = draw_button("chevron-right", "Move selected tickets to neighbouring milestone").addClass("hidden").appendTo(this.$selectionControls);
-    this.$moveTicketsBtn.on("click", $.proxy(this.move_selection, this));
+      this.$moveTicketsBtn      = draw_button("chevron-right", "Move selected tickets to neighbouring milestone").addClass("hidden").appendTo(this.$selectionControls);
+      this.$moveTicketsBtn.on("click", $.proxy(this.move_selection, this));
 
-    this.$selectionToggleBtn  = draw_button("check", "Select all").appendTo(this.$selectionControls);
-    this.selection_unselected();
+      this.$selectionToggleBtn  = draw_button("check", "Select all").appendTo(this.$selectionControls);
+      this.selection_unselected();
+    }
 
     this.$title     =   $("<div class='title'></div>").appendTo(this.$top);
     this.$filter    = $("<input class='filter' type='text' placeholder='Filter Tickets...' />").appendTo(this.$container);
 
-    this.$multiPick = $("<div class='multi-pick'></div>").appendTo(this.$container);
+    if(this.backlog.editable) {
+      this.$multiPick = $("<div class='multi-pick'></div>").appendTo(this.$container);
+      this.$mpPlaceholder = $("<div class='multi-pick-placeholder'></div>");
+    }
+
     this.$tktWrap   = $("<div class='tickets-wrap'></div>").appendTo(this.$container)
     this.$table       = $("<table class='tickets'></table>").appendTo(this.$tktWrap);
     this.$tBody         =   $("<tbody><tr><td class='wait'><i class='icon-spin icon-spinner'></i></td></tr></tbody>").appendTo(this.$table);
     this.$tBody.data("_self", this);
 
-    // Not always in DOM
-    this.$mpPlaceholder = $("<div class='multi-pick-placeholder'></div>");
 
     if(this.name == "") {
       this.$container.attr("id", "product-backlog");
@@ -245,7 +253,7 @@ var BacklogMilestone = LiveUpdater.extend({
   },
 
   refresh: function() {
-    this.multi_pick_stop();
+    if(this.backlog.editable) this.multi_pick_stop();
     this.remove_all_tickets();
     this.get_tickets();
   },
@@ -296,26 +304,28 @@ var BacklogMilestone = LiveUpdater.extend({
   },
 
   set_sortable: function() {
-    this.$tBody.sortable({
-      items: "> tr:not(.ui-state-disabled)",
-      connectWith: ".tickets tbody",
-      start: function(event, ui) {
-        ui.item.data("index", $("tr", ui.item.parent()).index(ui.item));
-      },
-      stop: function(event, ui) {
-        var ticket = ui.item.data("_self"),
-            newParent = ui.item.parent().data("_self");
-            newIndex = $("tr", ui.item.parent()).index(ui.item);
+    if(this.backlog.editable) {
+      this.$tBody.sortable({
+        items: "> tr:not(.ui-state-disabled)",
+        connectWith: ".tickets tbody",
+        start: function(event, ui) {
+          ui.item.data("index", $("tr", ui.item.parent()).index(ui.item));
+        },
+        stop: function(event, ui) {
+          var ticket = ui.item.data("_self"),
+              newParent = ui.item.parent().data("_self");
+              newIndex = $("tr", ui.item.parent()).index(ui.item);
 
-        $(".none", ui.item.parent()).remove();
+          $(".none", ui.item.parent()).remove();
 
-        // If a new milestone, or a new index, save changes
-        if(ticket.milestone.name != newParent.name ||
-           ui.item.data("index") != newIndex) {
-          ticket.save_changes();
+          // If a new milestone, or a new index, save changes
+          if(ticket.milestone.name != newParent.name ||
+             ui.item.data("index") != newIndex) {
+            ticket.save_changes();
+          }
         }
-      }
-    });
+      });
+    }
   },
 
   refresh_sortables: function() {
@@ -361,7 +371,7 @@ var BacklogMilestone = LiveUpdater.extend({
   },
 
   _do_filter: function() {
-    this.multi_pick_stop();
+    if(this.backlog.editable) this.multi_pick_stop();
     var query = $.trim(this.$filter.val().toLowerCase());
 
     // Empty query, don't do anything
@@ -682,9 +692,12 @@ var BacklogMilestone = LiveUpdater.extend({
 
   events: function() {
     this.$filter.on("keyup", $.proxy(this.filter_tickets, this));
-    this.$multiPick.on("mousedown", $.proxy(this.multi_pick_start, this));
-    this.$tktWrap.on("scroll", $.proxy(this.multi_pick_stop, this));
     if(this.$closeBtn) this.$closeBtn.on("click", $.proxy(this.remove, this));
+
+    if(this.backlog.editable) {
+      this.$multiPick.on("mousedown", $.proxy(this.multi_pick_start, this));
+      this.$tktWrap.on("scroll", $.proxy(this.multi_pick_stop, this));
+    }
 
     if(this.name != "") {
       this.$title.on("mousedown", $.proxy(this.sortable_before, this));
