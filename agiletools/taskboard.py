@@ -89,9 +89,7 @@ class TaskboardModule(Component):
                     constr['changetime'] = [from_iso + ".." + to_iso]
 
             # Get all tickets by milestone
-            query = Query(self.env, constraints=constr, max=0)
-
-            r = query.execute(req)
+            r = self._get_permitted_tickets(req, constraints=constr)
 
             if r:
                 script = self.get_ticket_data(req, milestone, group_by, r)
@@ -130,7 +128,7 @@ class TaskboardModule(Component):
         This is relevant because if a ticket moves out of scope we need to know
         about it so that it can be removed from the taskboard."""
         constraints = {'changetime': from_to}
-        all_changes = Query(self.env, constraints=constraints).execute(req)
+        all_changes = self._get_permitted_tickets(req, constraints=constraints)
         scope_ids = [t["id"] for t in changed_in_scope]
         return [t["id"] for t in all_changes if t["id"] not in scope_ids]
 
@@ -397,6 +395,11 @@ class TaskboardModule(Component):
 
     def _save_error(self, req, error):
         return {'error': error}
+
+    def _get_permitted_tickets(self, req, constraints=None):
+        qry = Query(self.env, constraints=constraints, max=0)
+        return [ticket for ticket in qry.execute(req)
+                if 'TICKET_VIEW' in req.perm('ticket', ticket['id'])]
 
     # ITemplateProvider methods
     def get_htdocs_dirs(self):

@@ -63,9 +63,8 @@ class BacklogModule(Component):
                     if milestone is not None:
                         try:
                             self._save_ticket(req, ticket, milestone)
-                            query = Query(self.env, constraints={'id': [str(int_ticket)]}, cols=self.fields)
-                            results = query.execute(req)
-                            response['tickets'] = self._get_ticket_data(req, results)
+                            ticket = self._get_permitted_tickets(req, constraints={'id': [str(int_ticket)]})
+                            response['tickets'] = self._get_ticket_data(req, ticket)
                         except ValueError as e:
                             return self._json_errors(req, e.message)
 
@@ -137,10 +136,9 @@ class BacklogModule(Component):
                     if from_iso and to_iso:
                         constr['changetime'] = [from_iso + ".." + to_iso]
 
-                    query = Query(self.env, constraints=constr, cols=self.fields, max=0)
-                    results = query.execute(req)
-                    tickets = self._get_ticket_data(req, results)
-                    self._json_send(req, {'tickets': tickets})
+                    tickets = self._get_permitted_tickets(req, constraints=constr)
+                    formatted = self._get_ticket_data(req, tickets)
+                    self._json_send(req, {'tickets': formatted})
                 else:
                     self._json_errors(req, ["Invalid arguments"])
 
@@ -235,6 +233,11 @@ class BacklogModule(Component):
                 raise ValueError(req.chrome['warnings'])
             else:
                 ticket.save_changes(req.authname, "", when=datetime.now(utc))
+
+    def _get_permitted_tickets(self, req, constraints=None):
+        qry = Query(self.env, constraints=constraints, cols=self.fields, max=0)
+        return [ticket for ticket in qry.execute(req)
+                if 'TICKET_VIEW' in req.perm('ticket', ticket['id'])]
 
     def _json_errors(self, req, error):
         return self._json_send(req, {'errors': error})
