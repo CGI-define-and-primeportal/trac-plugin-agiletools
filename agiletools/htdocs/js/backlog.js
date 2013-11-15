@@ -208,7 +208,7 @@ var BacklogMilestone = LiveUpdater.extend({
     }
 
     this.$title     =   $("<div class='title'></div>").appendTo(this.$top);
-    this.$filter    = $("<input class='filter' type='text' placeholder='Filter Tickets...' />").appendTo(this.$container);
+    this.$filter    = $("<input class='filter' type='text' />").appendTo(this.$container).valueLabel("Filter Tickets...");
 
     if(this.backlog.editable) {
       this.$multiPick = $("<div class='multi-pick'></div>").appendTo(this.$container);
