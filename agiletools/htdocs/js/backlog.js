@@ -375,7 +375,8 @@ var BacklogMilestone = LiveUpdater.extend({
     var query = $.trim(this.$filter.val().toLowerCase());
 
     // Empty query, don't do anything
-    if(query == "") {
+    // TODO - remove the additional check when we improve valueLabel
+    if(query == "" || query == "filter tickets...") {
       this.$container.addClass("no-filter");
     }
 
