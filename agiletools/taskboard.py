@@ -36,6 +36,7 @@ class TaskboardModule(Component):
 
     @property
     def valid_fields(self):
+        """All fields with discrete values which aren't in restricted list"""
         return [f for f in TicketSystem(self.env).get_ticket_fields()
                 if (f.get("type") in ("select", "radio")
                 or f.get("name") in self.user_fields)
@@ -58,6 +59,9 @@ class TaskboardModule(Component):
         group_by = req.args.get("group", "status")
 
         milestones = Milestone.select_names_select2(self.env, include_complete=False)
+
+        # Try to find a user selected milestone, and fall back on the most
+        # upcoming milestone if either not set or not found
         milestone = req.args.get("milestone")
         milestone_not_found = False
         if milestone:
@@ -70,7 +74,7 @@ class TaskboardModule(Component):
         if not milestone and len(milestones["results"]):
             milestone = milestones["results"][0]["text"]
 
-        # Pick up an Ajax post
+        # Ajax post
         if req.args.get("ticket") and xhr:
             result = self.save_change(req, milestone)
             req.send(to_json(result), 'text/json')
@@ -81,7 +85,7 @@ class TaskboardModule(Component):
             if milestone:
                 constr['milestone'] = [milestone]
 
-            # If we're requesting an Ajax update, just send JSON
+            # Ajax update: tickets changed between a period
             if xhr:
                 from_iso = req.args.get("from", "")
                 to_iso = req.args.get("to", "")
@@ -89,24 +93,24 @@ class TaskboardModule(Component):
                     constr['changetime'] = [from_iso + ".." + to_iso]
 
             # Get all tickets by milestone
-            r = self._get_permitted_tickets(req, constraints=constr)
+            tickets = self._get_permitted_tickets(req, constraints=constr)
 
-            if r:
-                script = self.get_ticket_data(req, milestone, group_by, r)
-                script['total_tickets'] = len(r)
-                data['cur_group'] = script['groupName']
+            if tickets:
+                s_data = self.get_ticket_data(req, milestone, group_by, tickets)
+                s_data['total_tickets'] = len(tickets)
+                data['cur_group'] = s_data['groupName']
             else:
-                script = {}
+                s_data = {}
                 data['cur_group'] = group_by
 
             if xhr:
                 if constr.get("changetime"):
-                    script['otherChanges'] = \
-                        self.all_other_changes(req, r, constr['changetime'])
+                    s_data['otherChanges'] = \
+                        self.all_other_changes(req, tickets, constr['changetime'])
 
-                req.send(to_json(script), 'text/json')
+                req.send(to_json(s_data), 'text/json')
             else:
-                script.update({
+                s_data.update({
                     'formToken': req.form_token,
                     'milestones': milestones
                 })
@@ -118,13 +122,19 @@ class TaskboardModule(Component):
 
                 add_script(req, 'agiletools/js/update_model.js')
                 add_script(req, 'agiletools/js/taskboard.js')
-                add_script_data(req, script)
+                add_script_data(req, s_data)
 
                 add_stylesheet(req, 'agiletools/css/taskboard.css')
                 return "taskboard.html", data, None
 
+    def _get_permitted_tickets(self, req, constraints=None):
+        query = Query(self.env, constraints=constraints, max=0)
+        return [ticket for ticket in query.execute(req)
+                if 'TICKET_VIEW' in req.perm('ticket', ticket['id'])]
+
     def all_other_changes(self, req, changed_in_scope, from_to):
         """Return tuple of ticket IDs changed outside of query scope.
+
         This is relevant because if a ticket moves out of scope we need to know
         about it so that it can be removed from the taskboard."""
         constraints = {'changetime': from_to}
@@ -134,28 +144,38 @@ class TaskboardModule(Component):
 
     def get_ticket_data(self, req, milestone, grouped_by, results):
         """Return formatted data into single object to be used as JSON.
+
         Checks for a valid field (or groups by status).
         Then looks for a custom method for field, else uses standard method.
         """
-        fields = ("summary", "milestone", "type", "component", "status",
+        visible_fields = ("summary", "milestone", "type", "component", "status",
                   "priority", "priority_value", "owner", "changetime")
-        try:
-            valid_group = next(field for field in self.valid_fields
-                               if field.get("name") == grouped_by)
-        except StopIteration:
-            valid_group = next(field for field in self.valid_fields
-                               if field.get("name") == "status")
 
+        # Try to group tickets by a user-specified valid field
+        # if the field doesn't exist, we fall back to grouping by status
+        group_by = None
+
+        for field in self.valid_fields:
+            name = field.get("name")
+            if name in (grouped_by, "status"):
+                group_by = field
+                if name == grouped_by:
+                    break
+
+        # Look for a custom get method, based on the valid group
         try:
-            get_f = getattr(self, "_get_%s_data" % valid_group["name"])
+            get_f = getattr(self, "_get_%s_data" % group_by["name"])
         except AttributeError:
-            if valid_group["name"] in self.user_fields:
+            if group_by["name"] in self.user_fields:
                 get_f = self._get_user_data_
             else:
                 get_f = self._get_standard_data_
-        return self._formatted_data(get_f(req, milestone, valid_group, results, fields))
+
+        ticket_data = get_f(req, milestone, group_by, results, visible_fields)
+        return self._formatted_data(ticket_data)
 
     def _get_standard_data_(self, req, milestone, field, results, fields):
+        """Get ticket information when no custom grouped-by method present."""
         ats = AgileToolsSystem(self.env)
         tickets_json = defaultdict(lambda: defaultdict(dict))
 
@@ -175,7 +195,7 @@ class TaskboardModule(Component):
         return (field["name"], tickets_json, options)
 
     def _get_user_data_(self, req, milestone, field, results, fields):
-        """Get data grouped by users. Should include extra user info"""
+        """Get data grouped by users. Includes extra user info."""
         ats = AgileToolsSystem(self.env)
         tickets_json = defaultdict(lambda: defaultdict(dict))
 
@@ -206,6 +226,7 @@ class TaskboardModule(Component):
 
     def _get_status_data(self, req, milestone, field, results, fields):
         """Get data grouped by WORKFLOW and status.
+
         It's not possible to show tickets in different workflows on the same
         taskboard, so we create an additional outer group for workflows.
         We then get the workflow with the most tickets, and show that first"""
@@ -279,9 +300,10 @@ class TaskboardModule(Component):
         return actions
 
     def _update_controls(self, req, action_controls, actions, tkt):
-        """Given actions list, update action_controls w all requiring input
-           c[2] is HTML inputs required before an action can be completed.
-           If it exists, we make a note of the action operation."""
+        """Given list of actions, update action_controls w/all requiring input.
+
+        control[2] represents HTML inputs required before an action can be
+        completed. If it exists, we make a note of the action operation."""
         tm = TicketModule(self.env)
         for (act, act_ops) in actions.itervalues():
             for act_op in act_ops:
@@ -316,6 +338,7 @@ class TaskboardModule(Component):
 
     def save_change(self, req, milestone):
         """Try to save changes and return new data, else return error dict.
+
         As with getting ticket data, we check for a custom save method,
         and else use the standard implementation
         """
@@ -395,11 +418,6 @@ class TaskboardModule(Component):
 
     def _save_error(self, req, error):
         return {'error': error}
-
-    def _get_permitted_tickets(self, req, constraints=None):
-        qry = Query(self.env, constraints=constraints, max=0)
-        return [ticket for ticket in qry.execute(req)
-                if 'TICKET_VIEW' in req.perm('ticket', ticket['id'])]
 
     # ITemplateProvider methods
     def get_htdocs_dirs(self):
