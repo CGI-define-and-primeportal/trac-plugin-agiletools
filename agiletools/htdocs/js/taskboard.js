@@ -1,3 +1,6 @@
+var isChrome = "chrome" in window,
+    isWindows = navigator.userAgent.toLowerCase().indexOf("windows") != -1;
+
 // DOCUMENT READY CALL
 // ===================
 $(document).ready(function() {
@@ -813,6 +816,15 @@ var Ticket = Class.extend({
                     _this.$el.remove();
                     _this.$el = _this.$elOriginal.draggable("enable")
                                                  .removeClass("placeholder");
+
+                    // Nasty hack to force repainting on Win Chrome
+                    // without it, the UI is left with "streak marks" from the move
+                    // TODO remove when no longer needed
+                    if(isChrome && isWindows) {
+                      _this.group.$elBody.fadeOut(1, function() {
+                        _this.group.$elBody.fadeIn(1);
+                      });
+                    }
                   }, 1000);
                 }
               });
