@@ -525,14 +525,14 @@ var BacklogMilestone = LiveUpdater.extend({
 
     var maxHeight = this.$tktWrap.height() + this.mpMinHeight;
 
-    $(window).on("mousemove", function(e) {
+    $(document).on("mousemove", function(e) {
       $("body").attr('unselectable', 'on')
                .css('user-select', 'none')
                .on('selectstart', false);
       var height = Math.min(Math.max(_this.mpMinHeight, e.pageY - offset + (1.5*_this.mpMinHeight)), maxHeight);
       _this.$multiPick.css("height", height);
     });
-    $(window).one("mouseup", function() { _this.multi_pick_process() });
+    $(document).one("mouseup", function() {_this.multi_pick_process() });
   },
 
   /* Picking all resembles the multi-pick functionality (move our toggle to the bottom) */
@@ -554,7 +554,7 @@ var BacklogMilestone = LiveUpdater.extend({
   },
 
   multi_pick_process: function(all) {
-    $(window).off("mousemove");
+    $(document).off("mousemove");
     $("body").removeAttr('unselectable')
              .removeAttr('style')
              .off('selectstart');
