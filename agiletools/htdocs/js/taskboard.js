@@ -428,6 +428,7 @@ var Taskboard = LiveUpdater.extend({
     });
     this.$optDialog.html(operation[2]);
     $("select", this.$optDialog).select2({
+      width: "off",
       adaptContainerCssClass: function(cls) { return null; },
       dropdownCssClass: "ui-dialog"
     });
