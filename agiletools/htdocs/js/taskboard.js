@@ -8,7 +8,7 @@ $(document).ready(function() {
 
   // Only instantiate the taskboard if we have ticket data
   if(window.tickets) {
-    taskboard = new Taskboard("taskboard", $container, window.groupName,
+    var taskboard = new Taskboard("taskboard", $container, window.groupName,
                               window.groups, window.tickets, window.currentWorkflow);
     init_popovers($container);
     init_filters(taskboard);
