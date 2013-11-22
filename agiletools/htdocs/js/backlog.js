@@ -10,7 +10,7 @@ $(document).ready(function() {
       }
     }
     window.formToken = $("#form input").val();
-    backlog = new Backlog("#content", initials, window.backlogAdmin);
+    var backlog = new Backlog("#content", initials, window.backlogAdmin);
   }
 });
 
