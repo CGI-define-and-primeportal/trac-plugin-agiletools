@@ -1,4 +1,5 @@
-var isChrome = "chrome" in window,
+var taskboard,
+    isChrome = "chrome" in window,
     isWindows = navigator.userAgent.toLowerCase().indexOf("windows") != -1;
 
 // DOCUMENT READY CALL
@@ -8,8 +9,9 @@ $(document).ready(function() {
 
   // Only instantiate the taskboard if we have ticket data
   if(window.tickets) {
-    var taskboard = new Taskboard("taskboard", $container, window.groupName,
+    taskboard = new Taskboard("taskboard", $container, window.groupName,
                               window.groups, window.tickets, window.currentWorkflow);
+
     init_popovers($container);
     init_filters(taskboard);
     if(taskboard.filtered) show_filter_msg($container);
