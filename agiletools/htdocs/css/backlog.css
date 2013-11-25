@@ -92,6 +92,7 @@
   cursor: n-resize;
   background: transparent;
   background: RGBA(221,221,221,0.4);
+  filter: progid:DXImageTransform.Microsoft.gradient(GradientType=0,startColorstr='#66D3D3D3', endColorstr='#66D3D3D3'); /* IE */
   height:12px;
   position: relative;
 }
