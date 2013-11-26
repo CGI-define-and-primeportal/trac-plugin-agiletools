@@ -25,7 +25,7 @@ class TaskboardModule(Component):
     implements(IRequestHandler, ITemplateProvider)
 
     restricted_fields = ListOption("taskboard", "restricted_fields",
-            default="statusgroup, workflow, resolution, type",
+            default="statusgroup, workflow, resolution, type, milestone",
             doc="""fields that shouldn't be present
             on the taskboard, separated by ',')"""
             )
