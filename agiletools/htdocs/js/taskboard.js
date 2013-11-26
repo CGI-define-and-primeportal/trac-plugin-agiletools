@@ -680,7 +680,7 @@ var Ticket = Class.extend({
     this.$elWait =  $("<div class='wait'><div class='indicators'></div></div>").appendTo(this.$el);
     this.$el.data("_self", this);
     this.$el.append("<a href='" + window.tracBaseUrl + "ticket/" + this.id + "' " +
-                    "class='title unselectable'>#" + this.id + ": <span></span></a>");
+                    "class='title unselectable tooltipped-above'>#" + this.id + ": <span></span></a>");
     var statsLength = this.statFields.length;
     for(var i = 0; i < statsLength; i ++) {
       this.$el.append("<div class='stat stat-" + this.statFields[i] + " unselectable'>" +
@@ -697,6 +697,7 @@ var Ticket = Class.extend({
     var _this = this;
     this.$el.attr("data-priority", this.tData["priority_value"]);
     $(".title span", this.$el).text(_this.tData['summary']);
+    $(".title", this.$el).attr("data-original-title",_this.tData['summary']);
 
     var statsLength = this.statFields.length;
     for(var i = 0; i < statsLength; i ++) {
