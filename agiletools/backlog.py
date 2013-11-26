@@ -15,12 +15,13 @@ from datetime import datetime
 from trac.util.datefmt import to_utimestamp, utc
 from trac.web.session import DetachedSession
 
+from logicaordertracker.controller import LogicaOrderController
 
 class BacklogModule(Component):
     implements(IRequestHandler, ITemplateProvider, IRequestFilter)
 
     fields = ("summary", "type", "component", "priority", "priority_value", 
-              "changetime", "reporter", "estimatedhours")
+              "changetime", "reporter", "estimatedhours", "status")
 
     #IRequestHandler methods
     def match_request(self, req):
@@ -181,33 +182,39 @@ class BacklogModule(Component):
     # Own methods
     def _get_ticket_data(self, req, results):
         ats = AgileToolsSystem(self.env)
+        loc = LogicaOrderController(self.env)
+        closed_statuses = loc.type_and_statuses_for_closed_statusgroups()
+
+        # TODO calculate which statuses are closed using the query system
+        # when it is able to handle this
         tickets = []
         for result in results:
-            filtered_result = dict((k, v)
-                               for k, v in result.iteritems()
-                               if k in self.fields)
+            if result['status'] not in closed_statuses[result['type']]:
+                filtered_result = dict((k, v)
+                                   for k, v in result.iteritems()
+                                   if k in self.fields)
 
-            if "estimatedhours" in filtered_result:
-                try:
-                    hours = float(filtered_result["estimatedhours"])
-                except (ValueError, TypeError):
+                if "estimatedhours" in filtered_result:
+                    try:
+                        hours = float(filtered_result["estimatedhours"])
+                    except (ValueError, TypeError):
+                        hours = 0
+                    del filtered_result["estimatedhours"]
+                else:
                     hours = 0
-                del filtered_result["estimatedhours"]
-            else:
-                hours = 0
 
-            reporter = filtered_result["reporter"]
-            session = DetachedSession(self.env, reporter)
+                reporter = filtered_result["reporter"]
+                session = DetachedSession(self.env, reporter)
 
-            filtered_result.update({
-                'id': result['id'],
-                'position': ats.position(result['id']),
-                'hours': hours,
-                'reporter': session.get('name', reporter),
-                'changetime': to_utimestamp(filtered_result['changetime'])
-                })
+                filtered_result.update({
+                    'id': result['id'],
+                    'position': ats.position(result['id']),
+                    'hours': hours,
+                    'reporter': session.get('name', reporter),
+                    'changetime': to_utimestamp(filtered_result['changetime'])
+                    })
 
-            tickets.append(filtered_result)
+                tickets.append(filtered_result)
 
         return tickets
 
