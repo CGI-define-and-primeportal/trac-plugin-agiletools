@@ -1,6 +1,5 @@
 from agiletools.api import AgileToolsSystem
 
-from autocompleteplugin.autocomplete import AutoCompleteSystem
 from collections import defaultdict
 from trac.core import Component, implements, TracError
 from trac.config import ListOption
@@ -20,6 +19,7 @@ from datetime import datetime
 from trac.util.datefmt import to_utimestamp, utc
 import re
 
+from simplifiedpermissionsadminplugin.simplifiedpermissions import SimplifiedPermissions
 
 class TaskboardModule(Component):
     implements(IRequestHandler, ITemplateProvider)
@@ -197,20 +197,28 @@ class TaskboardModule(Component):
     def _get_user_data_(self, req, milestone, field, results, fields):
         """Get data grouped by users. Includes extra user info."""
         ats = AgileToolsSystem(self.env)
+        sp = SimplifiedPermissions(self.env)
+
         tickets_json = defaultdict(lambda: defaultdict(dict))
 
-        all_users = AutoCompleteSystem(self.env)._project_users
-        most_popular_group = max(all_users, key=lambda x: len(x))
-
-        options = [""]
+        all_users = []
         user_data = {}
         use_avatar = self.config.get('avatar','mode').lower() != 'off'
-        for user in all_users[most_popular_group]:
-            options.append(user["sid"])
-            user_data[user["sid"]] = {
-                'name': user["name"],
-                'avatar': use_avatar and req.href.avatar(user["sid"]) or None
-            }
+
+        # TODO: allow the task board to respect user groups
+        for group, data in sp.group_memberships().items():
+            for member in data['members']:
+                if member.sid not in user_data:
+                    all_users.append(member.sid);
+                    user_data[member.sid] = {
+                        'name': member.get("name", member.sid),
+                        'avatar': use_avatar and req.href.avatar(member.sid) or None
+                    }
+
+        def name_for_sid(sid):
+            return user_data[sid]["name"] if sid in user_data else sid
+
+        options = [""] + sorted(all_users, key=name_for_sid)
 
         for result in results:
             ticket = Ticket(self.env, result['id'])
