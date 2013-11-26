@@ -997,6 +997,7 @@ function show_filter_msg($container) {
     $filterMsg.slideUp(function() {
       $filterMsg.remove();
     });
+    $("#btn-groups-filter").click();
   });
 }
 
