@@ -61,10 +61,15 @@ var Backlog = Class.extend({
       containerCssClass: $(this).attr("id"),
       dropdownCssClass: "width-auto",
       data: window.milestones,
-      placeholder: "Milestones",
+      placeholder: "View milestones",
       formatResult: function(object, container) {
-        container.toggleClass("select2-disabled", object.text in _this.milestones);
-        return object.text;
+        if(object.text in _this.milestones) {
+          return "<i class='icon-check'></i> " + object.text;
+        }
+        else {
+          container.toggleClass("select2-disabled", _this.length == 4);
+          return "<i class='icon-check-empty'></i> " + object.text;
+        }
       },
     });
 
@@ -78,19 +83,26 @@ var Backlog = Class.extend({
     });
   },
 
-  add_milestone: function(name) {
-    this.length ++;
-    this.milestones[name] = new BacklogMilestone(this, name);
-    if(this.length == 4) {
-      this.$select.select2("readonly", true);
+  toggle_milestone: function(name) {
+    if(this.milestones[name]) {
+      this.milestones[name].remove();
     }
-    this.add_remove_milestone();
+    else {
+      this.add_milestone(name);
+    }
+  },
+
+  add_milestone: function(name) {
+    if(this.length < 4) {
+      this.length ++;
+      this.milestones[name] = new BacklogMilestone(this, name);
+      this.add_remove_milestone();
+    }
   },
 
   _remove_milestone_references: function(milestone) {
     this.length --;
     delete this.milestones[milestone.name];
-    this.$select.select2("readonly", false);
     this.add_remove_milestone();
   },
 
@@ -147,11 +159,8 @@ var Backlog = Class.extend({
     var _this = this;
     this.$select.on("change", function() {
       // Add the milestone if not already present
-      var val = $(this).val();
-      if(!_this.milestones.hasOwnProperty(val)) {
-        _this.add_milestone(val);
-      }
-      $(this).select2("val", "");
+      _this.toggle_milestone($(this).val());
+      $(this).select2("val", "").select2("open");
     });
   }
 
