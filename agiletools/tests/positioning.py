@@ -18,7 +18,7 @@ class PositioningTestCase(unittest.TestCase):
             print "%8s %8s" % (row[1], row[2])
 
     def setUp(self):
-        self.env = EnvironmentStub(enable=['trac.*', 'agiletools.*', 'tracremoteticket.api.*'])
+        self.env = EnvironmentStub(enable=['trac.*', 'agiletools.*', 'tracremoteticket.api.*'], default_data=True)
         self.ts = AgileToolsSystem(self.env)
         self.ts.environment_created()
         self.req = Mock(href=self.env.href, authname='anonymous')
@@ -29,8 +29,19 @@ class PositioningTestCase(unittest.TestCase):
                          [1])
 
     def test_original_ordering(self):
-        for i in range(5):
-            Ticket(self.env).insert()
+        ticket_priorities = ["minor", "major", "blocker", "critical", "minor"]
+        for priority in ticket_priorities:
+            ticket = Ticket(self.env)
+            ticket["priority"] = priority
+            ticket.insert()
+
+        # Test that without an order set, and without any explicit positions
+        # our tickets are ordered by priority DESC, id ASC as before
+        self.assertEqual([r['id'] for r in Query(self.env).execute(self.req)],
+                         [3,4,2,1,5])
+
+        # Test that when an explicit order and asc/desc set, continues to work
+        # as before
         self.assertEqual([r['id'] for r in Query(self.env, order='id', desc=1).execute(self.req)],
                          [5,4,3,2,1])
 
