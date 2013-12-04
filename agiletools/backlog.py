@@ -167,7 +167,7 @@ class BacklogModule(Component):
 
     def post_process_request(self, req, template, data, content_type):
         if req.path_info == "/query" \
-                and data.get("dynamic_order") \
+                and data and data.get("dynamic_order") \
                 and req.perm.has_permission("BACKLOG_ADMIN"):
             add_script(req, "agiletools/js/backlog_query.js")
         return (template, data, content_type)
