@@ -1,16 +1,7 @@
 $(document).ready(function() {
-  initials = [""];
   if(window.milestones) {
-    topLevel = window.milestones.results;
-    if(topLevel.length > 0) {
-      firstMilestone = topLevel[0];
-      initials.push(firstMilestone.text);
-      if(firstMilestone.children.length > 0) {
-        initials.push(firstMilestone.children[0].text);
-      }
-    }
     window.formToken = $("#form input").val();
-    var backlog = new Backlog("#content", initials, window.backlogAdmin);
+    var backlog = new Backlog("#content", milestones_from_query(), window.backlogAdmin);
   }
 });
 
@@ -23,10 +14,15 @@ var Backlog = Class.extend({
     this.milestones = {};
     this.tickets = {};
     this.editable = editable || false;
+    this.firedPush = false;
+    this.milestoneOrder = [];
 
     for(var i = 0; i < initialMilestones.length; i ++) {
-      this.add_milestone(initialMilestones[i]);
+      this.add_milestone(initialMilestones[i], false);
     }
+
+    // Replace the URL state to add data to this history point
+    this.update_url(true);
 
     this.events();
   },
@@ -77,59 +73,140 @@ var Backlog = Class.extend({
       handle: ".top .title",
       items: "> *:not(#product-backlog)",
       stop: function(e, ui) {
+
+        // Make a note of the new order by traversing the DOM
+        _this.milestoneOrder = [];
+        $("> div", _this.$container).each(function(i, elem) {
+          _this.milestoneOrder.push($(elem).data("_self").name);
+        });
+
         ui.item.removeAttr("style");
         _this.set_multi_picks();
+        _this.update_url(false);
       }
     });
   },
 
   toggle_milestone: function(name) {
     if(this.milestones[name]) {
-      this.milestones[name].remove();
+      this.milestones[name].remove(true);
     }
     else {
-      this.add_milestone(name);
+      this.add_milestone(name, true);
     }
   },
 
-  add_milestone: function(name) {
+  add_milestone: function(name, updateUrl) {
+    // Show a maximum of 4 milestones
     if(this.length < 4) {
-      this.length ++;
-      this.milestones[name] = new BacklogMilestone(this, name);
-      this.add_remove_milestone();
+
+      // Only add a milestone block if a valid name is supplied
+      if(name == "" || $.inArray(name, window.milestonesFlat) != -1) {
+        this.length ++;
+        this.milestones[name] = new BacklogMilestone(this, name);
+        this.milestoneOrder.push(name);
+        this.add_remove_milestone(updateUrl);
+      }
     }
   },
 
-  _remove_milestone_references: function(milestone) {
+  _remove_milestone_references: function(milestone, updateUrl) {
+    var position = $.inArray(milestone.name, this.milestoneOrder);
+    if(position != -1) {
+      this.milestoneOrder.splice(position, 1);
+    }
     this.length --;
     delete this.milestones[milestone.name];
-    this.add_remove_milestone();
+    this.add_remove_milestone(updateUrl);
   },
 
   set_multi_picks: function() {
     // Readonly version
     if(!this.editable) return;
-
-    var _this = this;
-    $("> div", this.$container).each(function(i, elem) {
-      var milestone = $(elem).data("_self");
-      if(i + 1 < _this.length) {
+    for(var i = 0; i < this.length; i ++) {
+      var milestone = this.milestones[this.milestoneOrder[i]];
+      if(i + 1 < this.length) {
         milestone.multi_pick_enable();
       }
       else {
         milestone.multi_pick_disable();
       }
-    });
+    }
   },
 
   _remove_ticket_references: function(ticket) {
     delete this.tickets[ticket.tData.id];
   },
 
-  add_remove_milestone: function() {
+  // Update the URL with the current list of milestones
+  update_url: function(replace) {
+    var _this = this
+        milestones = [];
+
+    for(var i = 0; i < this.length; i ++) {
+      var milestone = this.milestones[this.milestoneOrder[i]];
+      milestones.push({
+        name: "m", value: milestone.name
+      });
+    }
+
+    // See https://github.com/browserstate/history.js/issues/312
+    this.firedPush = true;
+
+    // On page load we update (replace) the history state, else we make a new one
+    if(replace) {
+      History.replaceState(this.milestoneOrder, document.title, "?" + $.param(milestones));
+    }
+    else {
+      History.pushState(this.milestoneOrder, document.title, "?" + $.param(milestones));
+    }
+  },
+
+  // Popstate fired: user has gone back/forward in their history
+  // Check for milestones in this state and refresh
+  popstate: function() {
+    if(!this.firedPush) {
+      var previousMilestones = History.getState().data,
+          previousLength = previousMilestones.length,
+          unused = {};
+
+      // Make a note of all current milestones and detach their DOM elements
+      // Note detach* not remove, we don't want to remove events or data
+      for(var current in this.milestones) {
+        unused[current] = true;
+        this.milestones[current].$container.detach();
+      }
+
+      // Loop through all milestones we now need to show
+      // Add them if they don't currently exist, and put them into the DOM
+      for(var i = 0; i < previousLength; i ++) {
+        var name = previousMilestones[i];
+
+        if(!(name in this.milestones)) {
+          this.add_milestone(name, false);
+        }
+
+        delete unused[name];
+        this.$container.append(this.milestones[name].$container);
+      }
+
+      // Our unused object now contains references to no longer needed milestones
+      for(var oldMilestone in unused) {
+        this.milestones[oldMilestone].remove(false);
+      }
+
+      // Swap our current data with the popstate data
+      this.milestoneOrder = previousMilestones;
+      this.add_remove_milestone(false);
+    }
+    this.firedPush = false;
+  },
+
+  add_remove_milestone: function(updateUrl) {
     this.set_spans();
     this.refresh_sortables();
     this.set_multi_picks();
+    if(updateUrl) this.update_url(false);
   },
 
   remove_ticket: function(ticket) {
@@ -162,8 +239,14 @@ var Backlog = Class.extend({
       _this.toggle_milestone($(this).val());
       $(this).select2("val", "").select2("open");
     });
-  }
 
+    if(window.history && window.history.pushState) {
+      $(window).on("popstate", $.proxy(_this.popstate, _this));
+    }
+    else {
+      $(window).on("hashchange", $.proxy(_this.popstate, _this));
+    }
+  }
 });
 
 var BacklogMilestone = LiveUpdater.extend({
@@ -496,9 +579,9 @@ var BacklogMilestone = LiveUpdater.extend({
     return passesTests;
   },
 
-  remove: function() {
+  remove: function(updateUrl) {
     this.remove_all_tickets();
-    this.backlog._remove_milestone_references(this);
+    this.backlog._remove_milestone_references(this, updateUrl);
     if(this.$closeBtn) this.$closeBtn.tooltip("destroy");
     this.$container.remove();
     clearTimeout(this.filterTimeout);
@@ -711,7 +794,9 @@ var BacklogMilestone = LiveUpdater.extend({
   },
 
   sortable_cancel: function() {
-    this.backlog.$_to_cancel.removeAttr("style");
+    if(this.backlog.$_to_cancel) {
+      this.backlog.$_to_cancel.removeAttr("style");
+    }
   },
 
   events: function() {
@@ -897,4 +982,31 @@ function pretty_time(float_time) {
     result = "0h";
   }
   return result;
+}
+
+// Retrieve the default milestones
+// Try to find ones set in the URL, fallback to more recent if more
+function milestones_from_query() {
+
+  var query = $.QueryString,
+      initials = [];
+
+  if("m" in query) {
+    initials = (query["m"] instanceof Array) ? query["m"] : [query["m"]];
+  }
+
+  else {
+    var topLevel = window.milestones.results;
+    initials.push("");
+    if(topLevel.length > 0) {
+      firstMilestone = topLevel[0];
+      initials.push(firstMilestone.text);
+      if(firstMilestone.children.length > 0) {
+        initials.push(firstMilestone.children[0].text);
+      }
+    }
+    return initials;
+  }
+
+  return initials;
 }
