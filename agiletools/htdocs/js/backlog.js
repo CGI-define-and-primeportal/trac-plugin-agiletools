@@ -568,20 +568,25 @@ var BacklogMilestone = LiveUpdater.extend({
     if(!all) {
       // Calculate visible tickets below picker level
       var _this = this,
-          height = this.$multiPick.height(),
           position = this.$tktWrap.position().top,
-          depth = height + this.mpMinHeight + this.$tktWrap.scrollTop();
+          adjustedHeight = Math.floor(this.$multiPick.height() - _this.mpMinHeight);
 
-      this.mpSelection = {};
+      // Picker very close to it's original place: stop
+      if(adjustedHeight < 5) {
+        this.multi_pick_stop();
+        return;
+      }
+      else {
+        this.mpSelection = {};
 
-      $("tr:visible:not(.ui-state-disabled)", this.$tBody).each(function() {
-        var ticket = $(this).data("_self"),
-            ticketBottom = Math.floor($(this).position().top - position + $(this).height()),
-            mpAdjustedHeight = Math.floor(height - _this.mpMinHeight);
+        $("tr:visible:not(.ui-state-disabled)", this.$tBody).each(function() {
+          var ticket = $(this).data("_self"),
+              ticketBottom = Math.floor($(this).position().top - position + $(this).height());
 
-        if(ticketBottom > mpAdjustedHeight) return false;
-        _this.mpSelection[ticket.tData.id] = ticket;
-      });
+          if(ticketBottom > adjustedHeight) return false;
+          _this.mpSelection[ticket.tData.id] = ticket;
+        });
+      }
     }
 
     else {
