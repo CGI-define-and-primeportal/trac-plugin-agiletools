@@ -1,13 +1,13 @@
 $(document).ready(function() {
 
   var form_token = $("#query input[name='__FORM_TOKEN']").val(),
-      $table = $("#query-results"),
+      $tables = $("table", "#query-results"),
       $handle_prototype = $("<td class='rearrange-handle'></td>"),
       $all_handles = $();
 
   // Add handles to head and body
-  $("thead tr", $table).prepend("<th class='rearrange-handle'></th>");
-  $("tbody tr", $table).each(function() {
+  $("thead tr", $tables).prepend("<th class='rearrange-handle'></th>");
+  $("tbody tr", $tables).each(function() {
     $handle = $handle_prototype.clone().prependTo(this);
     $all_handles = $all_handles.add($handle);
   });
@@ -36,13 +36,13 @@ $(document).ready(function() {
     return $.trim($(".id a", $row).text().replace("#", ""));
   }
 
-  // Make the table sortable
-  $("tbody", $table).sortable({
+  // Make the tables sortable
+  $("tbody", $tables).sortable({
     containment: "parent",
     handle: ".rearrange-handle",
     start: function(e, ui) {
       // Remember the last position so we don't try to save if unmoved
-      ui.item.data("old_index", $("tbody tr", $table).index(ui.item));
+      ui.item.data("old_index", $("tr", this).index(ui.item));
     },
     stop: function(e, ui) {
 
@@ -51,7 +51,7 @@ $(document).ready(function() {
         $(this).removeAttr("style");
       });
 
-      if($("tbody tr", $table).index(ui.item) != ui.item.data("old_index")) {
+      if($("tr", this).index(ui.item) != ui.item.data("old_index")) {
         // Post this new position
         var relative_direction = "before",
             $relative = ui.item.next();
