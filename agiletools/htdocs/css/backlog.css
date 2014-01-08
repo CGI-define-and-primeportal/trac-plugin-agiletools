@@ -4,17 +4,6 @@
   position: relative;
 }
 
-.select2-product-backlog {
-  background:#DFEEFD;
-  color:#0066CC;
-  font-weight: bold;
-}
-
-.select2-product-backlog:hover { 
-  background:#3875D7;
-  color: #FFF;
-}
-
 #backlog > div { 
   border:1px solid #DDD;
   border-radius:5px;
@@ -50,12 +39,13 @@
 }
 #backlog .top .btn.hidden { display:none; }
 
+#product-backlog .top .title { cursor: auto; }
+
 #backlog #product-backlog .top .hours { 
   background: #EDF6FF;
   border-color: #AED7FF;
 }
 
-#backlog #product-backlog .top .hours.filtered { border-color:#3B91E7; }
 #backlog #product-backlog .top .hours.selection { border-color:#0066CC; }
 
 #backlog .top .title {
@@ -84,8 +74,7 @@
   background: #FAFAFA;
 }
 
-#backlog .top .hours.filtered { border-color:#999; }
-#backlog .top .hours.selection { border-color: #666; }
+#backlog .top .hours.selection { border-color: #999; }
 
 #backlog .filter {
   clear: both;

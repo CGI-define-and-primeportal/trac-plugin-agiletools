@@ -397,7 +397,7 @@ var Taskboard = LiveUpdater.extend({
           }
           else {
             // We've never seen this group before, reload taskboard entirely
-            this.refresh();
+            this.refresh(true);
           }
         }
       }
@@ -444,9 +444,9 @@ var Taskboard = LiveUpdater.extend({
     }
   },
 
-  refresh: function(notify) {
+  refresh: function(silent) {
     var _this = this;
-    if(notify) {
+    if(!silent) {
       var $loadMsg = $("<div class='taskboard-refresh'>" +
                        "<i class='icon-refresh icon-spin color-info'></i>" +
                      "</div>").appendTo(this.$container);
