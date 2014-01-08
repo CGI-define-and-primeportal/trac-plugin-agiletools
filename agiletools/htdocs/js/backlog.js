@@ -51,6 +51,7 @@ var Backlog = Class.extend({
     });
 
     var _this = this;
+
     this.$select.select2({
       allowClear: false,
       width: "off",
@@ -59,7 +60,11 @@ var Backlog = Class.extend({
       data: window.milestones,
       placeholder: "View milestones",
       formatResult: function(object, container) {
-        if(object.text in _this.milestones) {
+        // Stylise the product backlog differently
+        if(object.is_backlog) {
+          container.addClass("select2-product-backlog");
+        }
+        if((object.is_backlog ? "" : object.id) in _this.milestones) {
           return "<i class='icon-check'></i> " + object.text;
         }
         else {
@@ -69,11 +74,23 @@ var Backlog = Class.extend({
       },
     });
 
+    // See http://stackoverflow.com/a/17502602/1773904 
+    // for why we add the first-child class
     this.$container.sortable({
+      axis: "x",
       handle: ".top .title",
-      items: "> *:not(#product-backlog)",
+      items: ">",
+      tolerance: "pointer",
+      helper: "clone",
+      start: function(event, ui) {
+        $(":visible:first", "#backlog").addClass("first-child");
+      }, 
+      change: function(event, ui) {
+        $("#backlog").children().removeClass("first-child")
+                     .filter(":visible:first").addClass("first-child");
+      },
       stop: function(e, ui) {
-
+        $(".first-child", "#backlog").removeClass("first-child");
         // Make a note of the new order by traversing the DOM
         _this.milestoneOrder = [];
         $("> div", _this.$container).each(function(i, elem) {
@@ -234,9 +251,13 @@ var Backlog = Class.extend({
 
   events: function() {
     var _this = this;
-    this.$select.on("change", function() {
-      // Add the milestone if not already present
-      _this.toggle_milestone($(this).val());
+    this.$select.on("change", function(e) {
+      // Use the select2 data to check if we're adding the backlog or not
+      var milestone = e.added.is_backlog ? "" : e.added.id;
+
+      // Toggle the milestone
+      _this.toggle_milestone(milestone);
+
       $(this).select2("val", "").select2("open");
     });
 
@@ -316,9 +337,8 @@ var BacklogMilestone = LiveUpdater.extend({
     if(this.name == "") {
       this.$container.attr("id", "product-backlog");
     }
-    else {
-      this.$closeBtn = draw_button("remove", "Close milestone").addClass("right").prependTo(this.$top);
-    }
+
+    this.$closeBtn = draw_button("remove", "Close milestone").addClass("right").prependTo(this.$top);
   },
 
   set_label: function() {
@@ -783,22 +803,6 @@ var BacklogMilestone = LiveUpdater.extend({
     }
   },
 
-  sortable_before: function() {
-    this.backlog.$_to_cancel = this.$container;
-    var position = this.$container.position();
-    this.$container.css({
-      position: "absolute",
-      top: position.top,
-      left: position.left
-    });
-  },
-
-  sortable_cancel: function() {
-    if(this.backlog.$_to_cancel) {
-      this.backlog.$_to_cancel.removeAttr("style");
-    }
-  },
-
   events: function() {
     this.$filter.on("keyup", $.proxy(this.filter_tickets, this));
     if(this.$closeBtn) this.$closeBtn.on("click", $.proxy(this.remove, this));
@@ -806,11 +810,6 @@ var BacklogMilestone = LiveUpdater.extend({
     if(this.backlog.editable) {
       this.$multiPick.on("mousedown", $.proxy(this.multi_pick_start, this));
       this.$tktWrap.on("scroll", $.proxy(this.multi_pick_stop, this));
-    }
-
-    if(this.name != "") {
-      this.$title.on("mousedown", $.proxy(this.sortable_before, this));
-      this.$title.on("mouseup", $.proxy(this.sortable_cancel, this));
     }
   }
 });
@@ -998,8 +997,8 @@ function milestones_from_query() {
   else {
     var topLevel = window.milestones.results;
     initials.push("");
-    if(topLevel.length > 0) {
-      firstMilestone = topLevel[0];
+    if(topLevel.length > 1) {
+      firstMilestone = topLevel[1];
       initials.push(firstMilestone.text);
       if(firstMilestone.children.length > 0) {
         initials.push(firstMilestone.children[0].text);

@@ -4,6 +4,17 @@
   position: relative;
 }
 
+.select2-product-backlog {
+  background:#DFEEFD;
+  color:#0066CC;
+  font-weight: bold;
+}
+
+.select2-product-backlog:hover { 
+  background:#3875D7;
+  color: #FFF;
+}
+
 #backlog > div { 
   border:1px solid #DDD;
   border-radius:5px;
@@ -38,8 +49,6 @@
   color: #666;
 }
 #backlog .top .btn.hidden { display:none; }
-
-#product-backlog .top .title { cursor: auto; }
 
 #backlog #product-backlog .top .hours { 
   background: #EDF6FF;

@@ -148,11 +148,19 @@ class BacklogModule(Component):
             add_script(req, "agiletools/js/backlog.js")
             add_stylesheet(req, "agiletools/css/backlog.css")
 
+            milestones_select2 = Milestone.select_names_select2(self.env, include_complete=False)
+            milestones_select2['results'].insert(0, {
+                "children": [],
+                "text": "Product Backlog",
+                "id": "backlog",
+                "is_backlog": True,
+            })
+
             milestones_flat = [milestone.name for milestone in
-                               Milestone.select(self.env, include_children=True)]
+                               Milestone.select(self.env, include_completed=False, include_children=True)]
 
             script_data = { 
-                'milestones': Milestone.select_names_select2(self.env, include_complete=False),
+                'milestones': milestones_select2,
                 'milestonesFlat': milestones_flat,
                 'backlogAdmin': req.perm.has_permission("BACKLOG_ADMIN")
                 }
