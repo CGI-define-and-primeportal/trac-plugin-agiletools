@@ -15,7 +15,7 @@ var LiveUpdater = Class.extend({
       _this.updateCount ++;
       // Do a complete refresh every 10 mins
       if(_this.updateCount % _this.fullRefreshAfter === 0) {
-        _this.refresh(true);
+        _this.refresh();
       }
       else {
         _this.get_updates();

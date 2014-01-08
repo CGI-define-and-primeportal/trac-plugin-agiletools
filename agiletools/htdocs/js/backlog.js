@@ -254,14 +254,14 @@ var BacklogMilestone = LiveUpdater.extend({
           }
         }
         if(_this.length == 0) _this.set_empty_message();
-        _this.set_stats(false);
         _this.set_sortable();
         _this._do_filter();
       }
     });
   },
 
-  refresh: function() {
+  refresh: function(removeFilter) {
+    if(removeFilter) this.$filter.val("");
     if(this.backlog.editable) this.multi_pick_stop();
     this.remove_all_tickets();
     this.get_tickets();
@@ -285,13 +285,16 @@ var BacklogMilestone = LiveUpdater.extend({
     this.length --;
   },
 
-  set_stats: function(fromSelection) {
-    if(fromSelection) {
+  set_stats: function() {
+    var selection = this.mpSelection || this.filterSelection || false;
+    this.$stats.removeClass("selection filtered");
+    if(selection) {
+      this.$stats.addClass(this.mpSelection ? "selection" : "filtered");
       var hours = 0,
           tickets = 0;
-      for(var selectedId in this.selectedTickets) {
+      for(var selectedId in selection) {
         tickets ++;
-        hours += this.selectedTickets[selectedId].tData.hours;
+        hours += selection[selectedId].tData.hours;
       }
     }
     else {
@@ -301,7 +304,7 @@ var BacklogMilestone = LiveUpdater.extend({
     this.$stats.html(
       "<i class='icon-ticket'></i> " + tickets +
       "<i class='margin-left-small icon-time'></i> " + pretty_time(hours)
-    ).toggleClass("selection", fromSelection);
+    );
   },
 
   set_empty_message: function() {
@@ -383,6 +386,8 @@ var BacklogMilestone = LiveUpdater.extend({
     if(this.backlog.editable) this.multi_pick_stop();
     var query = $.trim(this.$filter.val().toLowerCase());
 
+    delete this.filterSelection;
+
     // Empty query, don't do anything
     // TODO - remove the additional check when we improve valueLabel
     if(query == "" || query == "filter tickets...") {
@@ -440,10 +445,13 @@ var BacklogMilestone = LiveUpdater.extend({
       if(sortedLength) {
 
         this.$container.removeClass("no-filter");
-
+        this.filterSelection = {};
         for(var ticket_id in this.tickets) {
-          var ticket = this.tickets[ticket_id];
-          ticket.toggle_visibility(this._ticket_satisfies_query(ticket, queries_sorted))
+          var ticket = this.tickets[ticket_id],
+              visible = this._ticket_satisfies_query(ticket, queries_sorted);
+
+          ticket.toggle_visibility(visible);
+          if(visible) this.filterSelection[ticket_id] = ticket;
         }
       }
 
@@ -452,6 +460,8 @@ var BacklogMilestone = LiveUpdater.extend({
         this.$container.addClass("no-filter");
       }
     }
+
+    this.set_stats();
   },
 
   _ticket_satisfies_query: function(ticket, queries) {
@@ -541,10 +551,6 @@ var BacklogMilestone = LiveUpdater.extend({
         mpHeight = this.$multiPick.height(),
         totalHeight = this.$tktWrap.height() + mpHeight;
 
-    // Make it clear that this is always all, regardless of filter
-    this.$filter.val("");
-    this._do_filter();
-
     this.mpMinHeight = mpHeight;
 
     this.$tktWrap.scrollTop(this.$table.height());
@@ -560,30 +566,30 @@ var BacklogMilestone = LiveUpdater.extend({
              .off('selectstart');
 
     if(!all) {
-      // Calculate tickets below picker level
+      // Calculate visible tickets below picker level
       var _this = this,
           height = this.$multiPick.height(),
           position = this.$tktWrap.position().top,
           depth = height + this.mpMinHeight + this.$tktWrap.scrollTop();
 
-      this.selectedTickets = {};
+      this.mpSelection = {};
 
       $("tr:visible:not(.ui-state-disabled)", this.$tBody).each(function() {
         var ticket = $(this).data("_self"),
-            ticketBottom = $(this).position().top - position + $(this).height(),
-            mpAdjustedHeight = height - _this.mpMinHeight;
+            ticketBottom = Math.floor($(this).position().top - position + $(this).height()),
+            mpAdjustedHeight = Math.floor(height - _this.mpMinHeight);
 
         if(ticketBottom > mpAdjustedHeight) return false;
-        _this.selectedTickets[ticket.tData.id] = ticket;
+        _this.mpSelection[ticket.tData.id] = ticket;
       });
     }
 
     else {
-      this.selectedTickets = this.tickets;
+      this.mpSelection = this.filterSelection || this.tickets;
     }
 
     this.selection_selected();
-    this.set_stats(true);
+    this.set_stats();
 
     this.$moveTicketsBtn.removeClass("hidden");
   },
@@ -599,9 +605,10 @@ var BacklogMilestone = LiveUpdater.extend({
       this.$mpPlaceholder.remove();
       this.$multiPick.removeAttr("style").removeClass("dragging");
       this.$tBody.sortable("enable");
-      this.set_stats(false);
+
+      delete this.mpSelection;
+      this.set_stats();
       this.selection_unselected();
-      delete this.selectedTickets;
     }
   },
 
@@ -659,8 +666,8 @@ var BacklogMilestone = LiveUpdater.extend({
           neighbour = this.$container.next().data("_self");
 
       if(neighbour) {
-        for(var selectedId in this.selectedTickets) {
-          var ticket = this.selectedTickets[selectedId];
+        for(var selectedId in this.mpSelection) {
+          var ticket = this.mpSelection[selectedId];
           ticketChangetimes.push(ticket.tData.changetime);
           ticketIds.push(ticket.tData.id);
         }
@@ -676,8 +683,10 @@ var BacklogMilestone = LiveUpdater.extend({
             if(data.hasOwnProperty("errors")) {
               _this.multi_pick_show_errors(data.errors);
             }
-            neighbour.refresh();
-            _this.refresh();
+
+            neighbour.refresh(true);
+            _this.refresh(true);
+
             _this.mp_running = false;
             $moveIcon.attr("class", "icon-chevron-right hidden");
           }

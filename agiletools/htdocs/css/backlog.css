@@ -46,6 +46,7 @@
   border-color: #AED7FF;
 }
 
+#backlog #product-backlog .top .hours.filtered { border-color:#3B91E7; }
 #backlog #product-backlog .top .hours.selection { border-color:#0066CC; }
 
 #backlog .top .title {
@@ -74,7 +75,8 @@
   background: #FAFAFA;
 }
 
-#backlog .top .hours.selection { border-color: #999; }
+#backlog .top .hours.filtered { border-color:#999; }
+#backlog .top .hours.selection { border-color: #666; }
 
 #backlog .filter {
   clear: both;
