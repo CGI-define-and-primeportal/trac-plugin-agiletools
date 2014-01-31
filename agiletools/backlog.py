@@ -144,6 +144,7 @@ class BacklogModule(Component):
                     self._json_errors(req, ["Invalid arguments"])
 
         else:
+            add_script(req, 'agiletools/js/jquery.history.js')
             add_script(req, "agiletools/js/update_model.js")
             add_script(req, "agiletools/js/backlog.js")
             add_stylesheet(req, "agiletools/css/backlog.css")

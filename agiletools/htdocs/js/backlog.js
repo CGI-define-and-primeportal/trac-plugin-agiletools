@@ -1009,3 +1009,39 @@ function milestones_from_query() {
 
   return initials;
 }
+
+/*
+ * Simple method to break down a query string into components
+ * Inspired by http://stackoverflow.com/a/3855394/1773904
+ * If multiple keys found, value is converted into an array
+ * To check if a key exists, use "foo" in $.QueryString
+ * This is because a key can exist without a value.
+ */
+if("History" in window) {
+  (function($) {
+    $.QueryString = (function(unsorted) {
+      var i, length = unsorted.length,
+          sorted = {};
+
+      if(unsorted[0] === "") return sorted;
+      for(i = 0; i < length; i ++) {
+        var query = unsorted[i].split('='),
+            name = query[0],
+            value = query[1];
+
+        if(value !== undefined) value = decodeURIComponent(value.replace(/\+/g, " "));
+
+        if(name in sorted) {
+          if(!(sorted[name] instanceof Array)) {
+            sorted[name] = [sorted[name]];
+          }
+          sorted[name].push(value);
+        }
+        else {
+          sorted[name] = value;
+        }
+      }
+      return sorted;
+    })((History.getState().hash.split("?")[1] || "").split("&"));
+  })(jQuery);
+}
