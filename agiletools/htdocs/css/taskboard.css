@@ -72,8 +72,8 @@
   float:right;
 }
 #taskboard th .group-count.case-warning  {
-  color:#A0060A;
-  background:#FFD6D6;
+  color:#A94442;
+  background:#F2DEDE;
   border-color:#E6C1C1;
 }
 #taskboard th .group-count.case-error  {
@@ -179,7 +179,7 @@
 
 #content.taskboard .ticket .wait .icon-exclamation-sign,
 #content.taskboard .ticket .wait .icon-exclamation-sign:hover { 
-  color: #FFD6D6;
+  color: #F2DEDE;
   cursor: pointer;
 }
 #content.taskboard > .ticket.tmp { margin-top:0; }
