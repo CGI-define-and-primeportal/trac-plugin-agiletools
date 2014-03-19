@@ -123,15 +123,20 @@
   cursor:move;
   max-height: 120px;
   line-height: 110%;
-  -webkit-transition: max-height 0.5s ease-out;
-          transition: max-height 0.5s ease-out;
+  -webkit-transition: max-height 0.5s ease-out, padding-top 0.5s ease;
+          transition: max-height 0.5s ease-out, padding-top 0.5s ease;
   border-radius:5px;
+}
+
+#content.taskboard.view-condensed .ticket {
+  padding-top: 15px;
 }
 
 #content.taskboard.view-condensed .ticket { max-height: 14px; }
 #content.taskboard.view-condensed .ticket .title { 
   border-bottom:none;
   padding-bottom:4px;
+  font-size: 95%;
 }
 
 #content.taskboard .ticket:before {
@@ -143,6 +148,11 @@
   height:10px;
   background:#DDD;
   display:block;
+  transition: height 0.5s ease;
+}
+
+#content.taskboard.view-condensed .ticket:before {
+  height: 5px;
 }
 
 #content.taskboard .ticket[data-priority="1"]:before { background: #E89E9E; }
@@ -194,6 +204,7 @@
   border-bottom:1px solid #DDD;
   display: block;
   color: #666;
+  transition: font-size 0.5s ease;
 }
 
 #content.taskboard .ticket .title:hover { 
