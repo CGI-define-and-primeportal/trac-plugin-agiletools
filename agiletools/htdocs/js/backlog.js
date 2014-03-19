@@ -833,6 +833,9 @@ var MilestoneTicket = Class.extend({
     this.$container = $("<tr>" +
       "<td class='priority' data-priority='" + this.tData.priority_value + "'></td>" +
       "<td class='id'>#" + this.tData.id + "</td>" +
+      "<td class='type' title='Type: " + this.tData.type + "'>" +
+        this.tData.type.substring(0, 3) +
+      "</td>" +
       "<td class='summary'>" +
         "<a href='" + window.tracBaseUrl + "ticket/" + this.tData.id + "'>"
           + this.tData.summary +
@@ -845,6 +848,10 @@ var MilestoneTicket = Class.extend({
     this.$feedback        = $("<i class='hidden'></i>").appendTo(this.$hoursFeedback);
 
     this.$container.appendTo(this.milestone.$tBody).data("_self", this);
+    $(".type", this.$container).tooltip({
+      placement: "top",
+      container: "body"
+    });
   },
 
   show_wait: function() {

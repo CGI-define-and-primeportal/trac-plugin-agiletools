@@ -192,6 +192,11 @@
 #backlog .tickets tbody .priority[data-priority="5"] { background: #A9F5BB; }
 
 #backlog .tickets .id { color: #999; }
+#backlog .tickets .type { 
+  font-size: 85%;
+  color: #AAA;
+  text-transform: uppercase;
+}
 #backlog .tickets .summary { width: 100%; }
 #backlog .tickets .summary a { color: #555; }
 #backlog .tickets .hours span {
