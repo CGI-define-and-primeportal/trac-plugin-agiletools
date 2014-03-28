@@ -129,7 +129,7 @@
 }
 
 #content.taskboard.view-condensed .ticket {
-  padding-top: 15px;
+  padding-top: 18px;
 }
 
 #content.taskboard.view-condensed .ticket { max-height: 14px; }
@@ -148,11 +148,6 @@
   height:10px;
   background:#DDD;
   display:block;
-  transition: height 0.5s ease;
-}
-
-#content.taskboard.view-condensed .ticket:before {
-  height: 5px;
 }
 
 #content.taskboard .ticket[data-priority="1"]:before { background: #E89E9E; }
