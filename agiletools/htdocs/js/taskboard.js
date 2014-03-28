@@ -787,13 +787,19 @@ var Ticket = Class.extend({
           needCopy = currentPos != newPos;
     }
     if(intoGroup || needCopy) {
+
+      // Calculate the current offset position, move the element, and recalculate
+      var parentOffset = this.$el.offsetParent().offset(),
+          oldOffset = this.$el.offset(),
+          newOffset;
+
       // We store the original and move the copy into .$el as 'waiting' user 
       // feedback is set against .$el
       this.$elOriginal = this.$el;
-      // Calculate the current offset position, move the element, and recalculate
-      var oldOffset = this.$el.offset();
+
       this.group.drop_in_place(this);
-      var newOffset = this.$el.offset();
+      newOffset = this.$el.offset();
+
       // Rewrite .$el with a clone
       this.$el = this.$el.clone().addClass("tmp").appendTo('#content');
       // Slide the original down, but make it appear as a placeholder
@@ -804,13 +810,13 @@ var Ticket = Class.extend({
       this.external_update_feedback(false);
       // Animate clone from original old's position to new
       this.$el.css('position', 'absolute')
-              .css('left', oldOffset.left)
-              .css('top', oldOffset.top)
+              .css('left', oldOffset.left - parentOffset.left)
+              .css('top', oldOffset.top - parentOffset.top)
               .css('zIndex', 90)
               .css('width', this.$elOriginal.width())
               .animate({
-                'top': newOffset.top,
-                'left': newOffset.left
+                'top': newOffset.top - parentOffset.top,
+                'left': newOffset.left - parentOffset.left
               },
               {
                 duration: 800,
