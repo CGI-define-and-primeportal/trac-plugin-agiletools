@@ -18,6 +18,10 @@
 }
 #taskboard-query .select2-container { width:210px; }
 
+.popover-groups {
+  width: 236px;
+}
+
 #set-groups-clear {
   margin-bottom:5px;
   display:block;

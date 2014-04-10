@@ -950,44 +950,11 @@ function init_filters(taskboard) {
 }
 
 function init_popovers($container) {
-  var $hidden = $("#popover-elements"),
-      $all_elems = $(),
-      popover_elements = [
-        {
-          $elem: $("#btn-groups-filter"),
-          title: "Filter Groups",
-          $content: $("#popover-groups")
-        },
-        {
-          $elem: $("#btn-change-workflow"),
-          title: "Change workflow",
-          $content: $("#popover-workflows")
-        }
-      ];
-
-  $.each(popover_elements, function(i, pop) {
-    $all_elems = $all_elems.add(pop.$elem);
-    pop.$elem.popover({
-      title: pop.title,
-      html: true,
-      container: "body",
-      placement: "bottom",
-      content: function() {
-        return pop.$content;
-      }
-    }).on("hide.bs.popover", function() {
-      $hidden.append(pop.$content);
-    });
+  $("#btn-groups-filter").popoverWith("#popover-groups", {
+    title: "Filter groups"
   });
-
-  $all_elems.each(function() {
-    $(this).on("click", function() {
-      $all_elems.not(this).popover("hide");
-      return false;
-    });
-  });
-  $("#content.taskboard").on("click", function() {
-    $all_elems.popover("hide");
+  $("#btn-change-workflow").popoverWith("#popover-workflows", {
+    title: "Change workflow"
   });
 }
 
