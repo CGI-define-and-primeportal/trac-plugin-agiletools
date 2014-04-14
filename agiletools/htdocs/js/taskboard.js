@@ -68,7 +68,7 @@ var Taskboard = LiveUpdater.extend({
    * @param {Object} groupData - The group data
    * @param {Object} ticketData - The ticket data
    * @param {string} [defaultWorkflow] - The initial workflow to show
-   */ 
+   */
   init: function(id, $container, groupBy, groupData, ticketData, defaultWorkflow) {
 
     var _this = this;
@@ -436,9 +436,9 @@ var Taskboard = LiveUpdater.extend({
    * removing tickets which have changed their scope (i.e. a milestone change)
    * @memberof Taskboard
    * @param {Object} data - JSON object returned by the server
-   *   @config {Object} ticket - Ticket information
-   *   @config {Object} opts - Additional options
-   *   @config {Array} otherChanges - ticket IDs which have changed but are not in scope
+   *   @param {Object} data.ticket - Ticket information
+   *   @param {Object} data.opts - Additional options
+   *   @param {Array}  data.otherChanges - ticket IDs which have changed but are not in scope
    * @param {Boolean} byUser - Was action was triggered by user or general
    */
   process_update: function(data, byUser) {
