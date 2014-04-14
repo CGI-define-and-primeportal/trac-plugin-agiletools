@@ -78,9 +78,11 @@ var Backlog = Class.extend({
       modal: true,
       autoOpen: false,
       title: "Failed to save ticket(s)",
+
+      // Obj could either be a BacklogMilestone or a MilestoneTicket
       close: function() {
-        var ticket = $(this).data("_obj");
-        if(ticket) ticket.revert_error.apply(ticket);
+        var obj = $(this).data("_obj");
+        if(obj) obj.revert_error();
         $(this).removeData("_obj");
       },
       buttons: {
