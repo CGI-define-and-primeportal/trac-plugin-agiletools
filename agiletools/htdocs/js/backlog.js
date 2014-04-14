@@ -1,3 +1,25 @@
+/* =============================================================================
+ * backlog.js
+ * =============================================================================
+ * @author Ian Clark
+ * @copyright CGI 2004
+ * @file A product backlog for Trac, enabling users to drap and drop tickets
+ * to change both their position and milestone. Using history.js to polyfill
+ * HTML5 pushState functionality, the backlog can be manipulated to include up
+ * to 4 milestones, in any order - both of which persist a page reload. By using
+ * the multipicker at the top of a milestone block, the user can select the most
+ * prioritised tickets in one go, and move them into a new milestone with a
+ * single click. The number of tickets and total hours in a milestone are shown
+ * at the top of the page, and are updated when the user makes a selection.
+ * TODO - make the backlog properly support live updates.
+ * =============================================================================
+ * @requires jQuery (>= 1.7)
+ * @requires jQuery UI Sortable (>= 1.10)
+ * @requires Bootstrap tooltip
+ * @requires Resig's Simple Inheritence Model (http://goo.gl/lWUkve)
+ * @requires history.js (https://github.com/browserstate/history.js/)
+ * ========================================================================== */
+
 $(document).ready(function() {
   if(window.milestones) {
     window.formToken = $("#form input").val();
@@ -5,8 +27,20 @@ $(document).ready(function() {
   }
 });
 
+
+// @namespace
+// BACKLOG PUBLIC CLASS DEFINITION
+// ===============================
 var Backlog = Class.extend({
 
+  /**
+   * Initialise a new backlog
+   * @constructor
+   * @alias Backlog
+   * @param {string} appendTo - jQuery selector to append backlog to
+   * @param {Array} initialMilestones - List of milestones to initially show
+   * @param {Boolean} editable - Where the user has permission to edit the backlog
+   */
   init: function(appendTo, initialMilestones, editable) {
     this.appendTo = appendTo;
     this.draw();
@@ -27,6 +61,10 @@ var Backlog = Class.extend({
     this.events();
   },
 
+  /**
+   * Draw the backlog, dialogs, and controls
+   * @memberof Backlog
+   */
   draw: function() {
     this.$controls  = $("<div id='backlog-controls'></div>").appendTo(this.appendTo);
     this.$select      = $("<input type='hidden' />").appendTo(this.$controls);
@@ -60,7 +98,6 @@ var Backlog = Class.extend({
       data: window.milestones,
       placeholder: "View milestones",
       formatResult: function(object, container) {
-        // Stylise the product backlog differently
         if(object.is_backlog) {
           container.addClass("select2-product-backlog");
         }
@@ -91,6 +128,7 @@ var Backlog = Class.extend({
       },
       stop: function(e, ui) {
         $(".first-child", "#backlog").removeClass("first-child");
+
         // Make a note of the new order by traversing the DOM
         _this.milestoneOrder = [];
         $("> div", _this.$container).each(function(i, elem) {
@@ -104,6 +142,11 @@ var Backlog = Class.extend({
     });
   },
 
+  /**
+   * Toggle a milestone's visibility
+   * @memberof Backlog
+   * @param {string} name - The name of the milestone to show / hide
+   */
   toggle_milestone: function(name) {
     if(this.milestones[name]) {
       this.milestones[name].remove(true);
@@ -113,8 +156,13 @@ var Backlog = Class.extend({
     }
   },
 
+  /**
+   * Add a milestone - show at maximum 4
+   * @memberof Backlog
+   * @param {string} name - The name of the milestone
+   * @param {Boolean} updateUrl - Whether to update the page's URL
+   */
   add_milestone: function(name, updateUrl) {
-    // Show a maximum of 4 milestones
     if(this.length < 4) {
 
       // Only add a milestone block if a valid name is supplied
@@ -127,6 +175,13 @@ var Backlog = Class.extend({
     }
   },
 
+  /**
+   * Remove all references to a given milestone
+   * @memberof Backlog
+   * @param {BacklogMilestone} milestone
+   * @param {Boolean} updateUrl - Whether to update the page's URL
+   * @private
+   */
   _remove_milestone_references: function(milestone, updateUrl) {
     var position = $.inArray(milestone.name, this.milestoneOrder);
     if(position != -1) {
@@ -137,8 +192,11 @@ var Backlog = Class.extend({
     this.add_remove_milestone(updateUrl);
   },
 
+  /**
+   * Activate the multipick for all milestones other than the right-most
+   * @memberof Backlog
+   */
   set_multi_picks: function() {
-    // Readonly version
     if(!this.editable) return;
     for(var i = 0; i < this.length; i ++) {
       var milestone = this.milestones[this.milestoneOrder[i]];
@@ -151,11 +209,21 @@ var Backlog = Class.extend({
     }
   },
 
+  /**
+   * Remove all references to a given ticket
+   * @memberof Backlog
+   * @param {Object} ticket - A ticket object
+   * @private
+   */
   _remove_ticket_references: function(ticket) {
     delete this.tickets[ticket.tData.id];
   },
 
-  // Update the URL with the current list of milestones
+  /**
+   * Update the page's URL with the current list of milestones
+   * @memberof Backlog
+   * @param {Boolean} replace - Whether to use replaceState or pushState
+   */
   update_url: function(replace) {
     var _this = this
         milestones = [];
@@ -179,8 +247,11 @@ var Backlog = Class.extend({
     }
   },
 
-  // Popstate fired: user has gone back/forward in their history
-  // Check for milestones in this state and refresh
+  /**
+   * Popstate fired: user has gone back/forward in their history
+   * Check for milestones in this state and refresh
+   * @memberof Backlog
+   */
   popstate: function() {
     if(!this.firedPush) {
       var previousMilestones = History.getState().data,
@@ -219,6 +290,11 @@ var Backlog = Class.extend({
     this.firedPush = false;
   },
 
+  /**
+   * Always events for adding / removing milestones
+   * @memberof Backlog
+   * @param {Boolean} updateUrl - Whether to update the page's URL or not
+   */
   add_remove_milestone: function(updateUrl) {
     this.set_spans();
     this.refresh_sortables();
@@ -226,11 +302,24 @@ var Backlog = Class.extend({
     if(updateUrl) this.update_url(false);
   },
 
+  /**
+   * Remove a ticket. TODO: remove unused method
+   * @memberof Backlog
+   * @param {MilestoneTicket} ticket
+   * @depreciated
+   */
   remove_ticket: function(ticket) {
     ticket.milestone.remove_ticket(ticket);
     delete this.tickets[ticket.tData.id];
   },
 
+  /**
+   * Visually move a ticket between milestones
+   * @memberof Backlog
+   * @param {MilestoneTicket} ticket
+   * @param {BacklogMilestone} from
+   * @param {BacklogMilestone} to
+   */
   move_ticket: function(ticket, from, to) {
     from._remove_ticket_references(ticket);
     to._add_ticket_references(ticket);
@@ -238,10 +327,18 @@ var Backlog = Class.extend({
     to.set_stats(false);
   },
 
+  /**
+   * Refresh each milestones sortable position
+   * @memberof Backlog
+   */
   refresh_sortables: function() {
     this.$container.sortable("refreshPositions");
   },
 
+  /**
+   * Depending on the number of active milestones, set their container widths
+   * @memberof Backlog
+   */
   set_spans: function() {
     var spanLength = 12 / this.length;
     for(var milestone in this.milestones) {
@@ -249,9 +346,14 @@ var Backlog = Class.extend({
     }
   },
 
+  /**
+   * Initialise all backlog events
+   * @memberof Backlog
+   */
   events: function() {
     var _this = this;
     this.$select.on("change", function(e) {
+
       // Use the select2 data to check if we're adding the backlog or not
       var milestone = e.added.is_backlog ? "" : e.added.id;
 
@@ -270,8 +372,19 @@ var Backlog = Class.extend({
   }
 });
 
+
+// @namespace
+// BACKLOG MILESTONE PRIVATE CLASS DEFINITION
+// ==========================================
 var BacklogMilestone = LiveUpdater.extend({
 
+  /**
+   * Initialise a new milestone (invoked by the Backlog)
+   * @constructor
+   * @alias BacklogMilestone
+   * @param {Backlog} backlog - Parent backlog
+   * @param {string} name - The name of the milestone
+   */
   init: function(backlog, name) {
     this.backlog = backlog;
     this.name = name;
@@ -294,6 +407,10 @@ var BacklogMilestone = LiveUpdater.extend({
     this.events();
   },
 
+  /**
+   * Draw the milestone box
+   * @memberof BacklogMilestone
+   */
   draw: function() {
 
     function draw_button(icon, tooltip_title) {
@@ -341,10 +458,18 @@ var BacklogMilestone = LiveUpdater.extend({
     this.$closeBtn = draw_button("remove", "Close milestone").addClass("right").prependTo(this.$top);
   },
 
+  /**
+   * Given it's name, set the label for a milestone. If blank, assume Product Backlog
+   * @memberof BacklogMilestone
+   */
   set_label: function() {
     this.$title.text(this.name == "" ? "Product Backlog" : this.name);
   },
 
+  /**
+   * Make an Ajax call to retrieve a milestone's tickets
+   * @memberof BacklogMilestone
+   */
   get_tickets: function() {
     var _this = this;
     this.$tBody.html("");
@@ -363,6 +488,11 @@ var BacklogMilestone = LiveUpdater.extend({
     });
   },
 
+  /**
+   * LiveUpdater's complete refresh method
+   * @memberof BacklogMilestone
+   * @param {Boolean} removeFilter - Whether to remove 
+   */
   refresh: function(removeFilter) {
     if(removeFilter) this.$filter.val("");
     if(this.backlog.editable) this.multi_pick_stop();
@@ -370,24 +500,43 @@ var BacklogMilestone = LiveUpdater.extend({
     this.get_tickets();
   },
 
+  /**
+   * Instantiate a new MilestoneTicket based on ticket data
+   * @memberof BacklogMilestone
+   * @param {Object} tData - Ticket data
+   */
   add_ticket: function(tData) {
     if(this.length == 0) this.clear_empty_message();
     var ticket = new MilestoneTicket(this.backlog, this, tData);
     this._add_ticket_references(ticket);
   },
 
+  /**
+   * Add a MilestoneTicket to a milestone, incrementing its total hours / count
+   * @memberof BacklogMilestone
+   * @param {MilestoneTicket} ticket
+   */
   _add_ticket_references: function(ticket) {
     this.total_hours += ticket.tData.hours;
     this.tickets[ticket.tData.id] = ticket;
     this.length ++;
   },
 
+  /**
+   * Remove a MilestoneTicket from a milestone, decrementing its total hours / count
+   * @memberof BacklogMilestone
+   * @param {MilestoneTicket} ticket
+   */
   _remove_ticket_references: function(ticket) {
     this.total_hours -= ticket.tData.hours;
     delete this.tickets[ticket.tData.id];
     this.length --;
   },
 
+  /**
+   * Set the milestone's stats in the user interface (depends on a selection)
+   * @memberof BacklogMilestone
+   */
   set_stats: function() {
     var selection = this.mpSelection || this.filterSelection || false;
     this.$stats.removeClass("selection filtered");
@@ -410,14 +559,26 @@ var BacklogMilestone = LiveUpdater.extend({
     );
   },
 
+  /**
+   * Set an empty message in the  user interface when no tickets exist
+   * @memberof BacklogMilestone
+   */
   set_empty_message: function() {
     this.$tBody.html("<tr class='none ui-state-disabled'><td>No tickets</td></tr>");
   }, 
 
+  /**
+   * Remove an empty message from the user interface
+   * @memberof BacklogMilestone
+   */
   clear_empty_message: function() {
     this.$tBody.html("");
   },
 
+  /**
+   * Provided the user can edit the backlog, intialise sorting tickets
+   * @memberof BacklogMilestone
+   */
   set_sortable: function() {
     if(this.backlog.editable) {
       this.$tBody.sortable({
@@ -443,6 +604,10 @@ var BacklogMilestone = LiveUpdater.extend({
     }
   },
 
+  /**
+   * Refresh the position and state of the sortables in a milestone
+   * @memberof BacklogMilestone
+   */
   refresh_sortables: function() {
     this.$tBody.sortable("refreshPositions");
   },
@@ -456,6 +621,13 @@ var BacklogMilestone = LiveUpdater.extend({
     "type": ["type", "is_in"]
   },
 
+  /**
+   * Given a filter name, try to return it's function, else return the default
+   * @private
+   * @memberof BacklogMilestone
+   * @param {string} name - the name of the filter
+   * @returns {function} The filter function
+   */
   _get_filter: function(name) {
     function search_friendly(input) {
       return input.toString().toLowerCase();
@@ -476,7 +648,10 @@ var BacklogMilestone = LiveUpdater.extend({
     return filters[name] || filters.is_in;
   },
 
-  // Add a slight delay so we don't query any more than we need to
+  /**
+   * Filtering the tickets in a milestone given the value of this.$filter
+   * @memberof BacklogMilestone
+   */
   filter_tickets: function() {
     var _this = this;
     clearTimeout(this.filterTimeout);
@@ -485,6 +660,11 @@ var BacklogMilestone = LiveUpdater.extend({
     }, 300);
   },
 
+  /**
+   * Actual filtering process, which is throttled by filter_tickets
+   * @private
+   * @memberof BacklogMilestone
+   */
   _do_filter: function() {
     if(this.backlog.editable) this.multi_pick_stop();
     var query = $.trim(this.$filter.val().toLowerCase());
@@ -500,9 +680,10 @@ var BacklogMilestone = LiveUpdater.extend({
     // If we enter a hash, then instead of filtering we scroll to the ticket
     else if(query.indexOf("#") == 0) {
       var ticketId = query.substring(1);
+
+      // We need relative positioning to calculate, but it prevents us
+      // from moving tickets between milestones, so turn on/calculate/off
       if(ticketId in this.tickets) {
-        // We need relative positioning to calculate, but it prevents us
-        // from moving tickets between milestones, so turn on/calculate/off
         this.$table.css("position", "relative");
         this.$tktWrap.scrollTop(this.tickets[ticketId].$container.position().top);
         this.$table.removeAttr("style");
@@ -567,6 +748,14 @@ var BacklogMilestone = LiveUpdater.extend({
     this.set_stats();
   },
 
+  /**
+   * Check that a given ticket matches a list of filters
+   * @private
+   * @memberof BacklogMilestone
+   * @param {MilestoneTicket} ticket
+   * @param {Array} queries - List of [queryTerm, filter] lists
+   * @returns {Boolean} whether the ticket stasfies all queries
+   */
   _ticket_satisfies_query: function(ticket, queries) {
     var defaultFields = ["id", "summary"],
         defaultLength = defaultFields.length;
@@ -599,6 +788,11 @@ var BacklogMilestone = LiveUpdater.extend({
     return passesTests;
   },
 
+  /**
+   * Remove this milestone from the backlog
+   * @memberof BacklogMilestone
+   * @param {Boolean} updateUrl - Whether to update the page's URL afterwards
+   */
   remove: function(updateUrl) {
     this.remove_all_tickets();
     this.backlog._remove_milestone_references(this, updateUrl);
@@ -607,23 +801,40 @@ var BacklogMilestone = LiveUpdater.extend({
     clearTimeout(this.filterTimeout);
   },
 
+  /**
+   * Remove all tickets from a milestone
+   * @memberof BacklogMilestone
+   */
   remove_all_tickets: function() {
-    this.xhr.abort(); // Stop loading new tickets
+    this.xhr.abort();
     for(var ticket in this.tickets) {
       this.tickets[ticket].remove();
     }
   },
 
+  /**
+   * Enable the milestone's multi-picker
+   * @memberof BacklogMilestone
+   */
   multi_pick_enable: function() {
     this.$multiPick.removeClass("hidden");
     this.$selectionControls.removeClass("hidden");
   },
 
+  /**
+   * Disable the milestone's multi-picker
+   * @memberof BacklogMilestone
+   */
   multi_pick_disable: function() {
     this.$multiPick.addClass("hidden");
     this.$selectionControls.addClass("hidden");
   },
 
+  /**
+   * When the user starts to use the multi-picker (MP), called on mousedown.
+   * Establishes mousemove event to set the MP level, and mouseup to process the selection
+   * @memberof BacklogMilestone
+   */
   multi_pick_start: function() {
     var _this = this,
         offset = this.$tktWrap.offset().top;
@@ -648,7 +859,10 @@ var BacklogMilestone = LiveUpdater.extend({
     $(document).one("mouseup", function() {_this.multi_pick_process() });
   },
 
-  /* Picking all resembles the multi-pick functionality (move our toggle to the bottom) */
+  /**
+   * Selecting all tickets resembles the multi-pick functionality (move toggle to the bottom)
+   * @memberof BacklogMilestone
+   */
   multi_pick_all: function() {
     var _this = this,
         mpHeight = this.$multiPick.height(),
@@ -662,14 +876,21 @@ var BacklogMilestone = LiveUpdater.extend({
     this.multi_pick_process(true);
   },
 
+  /**
+   * Process the multi-pick (MP) selection. If not all, manually check the MP
+   * height against the tickets in the milestone until we reach a ticket not
+   * covered by the MP.
+   * @memberof BacklogMilestone
+   * @param {Boolean} all - Whether to add all tickets into selection
+   */
   multi_pick_process: function(all) {
     $(document).off("mousemove");
     $("body").removeAttr('unselectable')
              .removeAttr('style')
              .off('selectstart');
 
+    // Calculate visible tickets below picker level
     if(!all) {
-      // Calculate visible tickets below picker level
       var _this = this,
           position = this.$tktWrap.position().top,
           adjustedHeight = Math.floor(this.$multiPick.height() - _this.mpMinHeight);
@@ -702,11 +923,19 @@ var BacklogMilestone = LiveUpdater.extend({
     this.$moveTicketsBtn.removeClass("hidden");
   },
 
+  /**
+   * Remove the multi-picker
+   * @memberof BacklogMilestone
+   * @param {Object} [e] - Event object
+   */
   multi_pick_stop: function(e) {
-    // When we select all we scroll to the bottom of the page
-    // But we don't want that to stop the multi pick
-    // This is the best fix I could think of for stackoverflow.com/questions/19766675/
     var event_type = e ? e.type : undefined;
+
+    // When the user scrolls the a milestone's tickets container we remove the MP
+    // selection. However, when a user selects all tickets we scroll to the bottom
+    // of the container (mimicing selecting all using the MP). As these two situations
+    // conflict, we use a switch mp_manual to prevent the MP from stopping when the
+    // container was scrolled, but we aren't actually manually using it.
     if(!(event_type == "scroll" && !this.mp_manual)) {
       $(window).off("mousemove");
       this.$moveTicketsBtn.addClass("hidden");
@@ -720,11 +949,22 @@ var BacklogMilestone = LiveUpdater.extend({
     }
   },
 
+  /**
+   * When moving multiple tickets into a new milestone, some tickets may fail
+   * to pass validation. If this is the case, we show the error button and store
+   * the list of errors.
+   * @memberof BacklogMilestone
+   * @param {Array} errors - List of [ticketId, ticketErrors] lists
+   */
   multi_pick_show_errors: function(errors) {
     this._errors = errors;
     this.$mpErrorBtn.removeClass("hidden");
   },
 
+  /**
+   * When the user clicks on the error button, open the dialog
+   * @memberof BacklogMilestone
+   */
   multi_pick_show_errors_msg: function() {
     var errors = this._errors || [],
         $list = $("ul", this.backlog.$failDialog).html("");
@@ -742,11 +982,19 @@ var BacklogMilestone = LiveUpdater.extend({
     }
   },
 
+  /**
+   * On closing the error dialog, remove the list of errors and hide the error button
+   * @memberof BacklogMilestone
+   */
   revert_error: function() {
     delete this._errors;
     this.$mpErrorBtn.addClass("hidden");
   },
 
+  /**
+   * Set the selection state to selected
+   * @memberof BacklogMilestone
+   */
   selection_selected: function() {
     this.$selectionToggleBtn.html("<i class='icon-check'></i>")
                             .off("click")
@@ -755,6 +1003,10 @@ var BacklogMilestone = LiveUpdater.extend({
                             .tooltip("fixTitle");
   },
 
+  /**
+   * Set the selection state to unselected
+   * @memberof BacklogMilestone
+   */
   selection_unselected: function() {
     this.mp_manual = false;
     this.$selectionToggleBtn.html("<i class='icon-check-empty'></i>")
@@ -764,6 +1016,10 @@ var BacklogMilestone = LiveUpdater.extend({
                             .tooltip("fixTitle");
   },
 
+  /**
+   * Make a request to move all selected tickets to the milestone to the right
+   * @memberof BacklogMilestone
+   */
   move_selection: function() {
     var $moveIcon = $("i", this.$moveTicketsBtn);
     if(!$moveIcon.hasClass("icon-spinner")) {
@@ -803,6 +1059,10 @@ var BacklogMilestone = LiveUpdater.extend({
     }
   },
 
+  /**
+   * Initialise events for the milestone
+   * @memberof BacklogMilestone
+   */
   events: function() {
     this.$filter.on("keyup", $.proxy(this.filter_tickets, this));
     if(this.$closeBtn) this.$closeBtn.on("click", $.proxy(this.remove, this));
@@ -814,8 +1074,20 @@ var BacklogMilestone = LiveUpdater.extend({
   }
 });
 
+
+// @namespace
+// MILESTONE TICKET PRIVATE CLASS DEFINITION
+// =========================================
 var MilestoneTicket = Class.extend({
 
+  /**
+   * Initialise a new ticket (invoked by a BacklogMilestone)
+   * @constructor
+   * @alias MilestoneTicket
+   * @param {Backlog} backlog - Parent backlog
+   * @param {BacklogMilestone} milestone - Parent milestone
+   * @param {Object} tData - Ticket data
+   */
   init: function(backlog, milestone, tData) {
     this.backlog = backlog;
     this.milestone = milestone;
@@ -829,6 +1101,10 @@ var MilestoneTicket = Class.extend({
 
   },
 
+  /**
+   * Draw the ticket box
+   * @memberof MilestoneTicket
+   */
   draw: function() {
     this.$container = $("<tr>" +
       "<td class='priority' data-priority='" + this.tData.priority_value + "'></td>" +
@@ -854,18 +1130,31 @@ var MilestoneTicket = Class.extend({
     });
   },
 
+  /**
+   * Show the waiting logo during a ticket update
+   * @memberof MilestoneTicket
+   */
   show_wait: function() {
     this.$hours.addClass("hidden");
     this.$feedback.attr("class", "icon-spin icon-spinner");
   },
 
+  /**
+   * Hide the waiting logo after an update completes
+   * @memberof MilestoneTicket
+   */
   hide_wait: function() {
     this.$hours.removeClass("hidden");
     this.$feedback.attr("class", "hidden");
   },
 
+  /**
+   * Show an error icon if the ticket fails to save
+   * @memberof MilestoneTicket
+   */
   show_error: function(errors, tmpParent) {
     this._errors = errors || [];
+
     // Stop user from moving ticket further
     this.$container.addClass("ui-state-disabled");
     tmpParent.refresh_sortables();
@@ -873,6 +1162,10 @@ var MilestoneTicket = Class.extend({
     this.$feedback.attr("class", "icon-exclamation-sign color-warning");
   },
 
+  /**
+   * Open the error dialog to tell the user why the ticket failed
+   * @memberof MilestoneTicket
+   */
   show_error_msg: function() {
     if(this.$feedback.hasClass("icon-exclamation-sign")) {
       this.backlog.$failDialog.dialog("open").data("_obj", this);
@@ -883,7 +1176,11 @@ var MilestoneTicket = Class.extend({
     }
   },
 
-  // Remove the error message and put the back in last legitimate position
+  /**
+   * On closing the error dialog, remove the error and move the ticket back
+   * to it's original position
+   * @memberof MilestoneTicket
+   */
   revert_error: function() {
     var $milestoneTickets = $("tr:not(.none)", this.milestone.$tBody);
     $milestoneTickets.eq(this.$container.data("index")).before(this.$container);
@@ -892,6 +1189,10 @@ var MilestoneTicket = Class.extend({
     this.hide_wait();
   },
 
+  /**
+   * Request to move an individual ticket
+   * @memberof MilestoneTicket
+   */
   save_changes: function() {
     var _this = this,
         $next = this.$container.next(),
@@ -932,6 +1233,7 @@ var MilestoneTicket = Class.extend({
           }
 
           _this.milestone = newParent;
+
           // Update ticket data with new timestamp
           if(data.tickets.length == 1) _this.tData = data.tickets[0];
         }
@@ -945,10 +1247,19 @@ var MilestoneTicket = Class.extend({
     })
   },
 
+  /**
+   * Toggle the visibility of a ticket depending on the provided filter
+   * @memberof MilestoneTicket
+   * @param {Boolean} toggle - Whether to show the ticket or not
+   */
   toggle_visibility: function(toggle) {
     this.$container.toggleClass("filter-hidden", !toggle);
   },
 
+  /**
+   * Initialise the ticket events
+   * @memberof MilestoneTicket
+   */
   events: function() {
     this.$feedback.on("click", $.proxy(this.show_error_msg, this));
     this.$container.on("mousedown", function() {
@@ -963,6 +1274,10 @@ var MilestoneTicket = Class.extend({
     });
   },
 
+  /**
+   * Remove the ticket and it's references at both the milestone and backlog levels
+   * @memberof MilestoneTicket
+   */
   remove: function() {
     this.backlog._remove_ticket_references(this)
     this.milestone._remove_ticket_references(this);
@@ -971,7 +1286,10 @@ var MilestoneTicket = Class.extend({
 
 });
 
-// Helper Methods
+/**
+ * Convert floating-point hours to user friendly representation
+ * @param {Number} float_time
+ */
 function pretty_time(float_time) {
   var result,
       hours = Math.floor(float_time),
@@ -990,8 +1308,10 @@ function pretty_time(float_time) {
   return result;
 }
 
-// Retrieve the default milestones
-// Try to find ones set in the URL, fallback to more recent if more
+/**
+ * Retrieve the default milestones, by trying to find ones set in the URL, and
+ * falling back to the most recent ones if not found
+ */
 function milestones_from_query() {
 
   var query = $.QueryString,
