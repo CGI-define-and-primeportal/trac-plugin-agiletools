@@ -25,7 +25,7 @@ var taskboard,
 // DOCUMENT READY CALL
 // ===================
 $(document).ready(function() {
-  var $container = $("#taskboard-container");
+  var $container = $("#taskboard-container"), workflows;
 
   // Only instantiate the taskboard if we have ticket data
   if(window.tickets) {
@@ -37,7 +37,7 @@ $(document).ready(function() {
     if(taskboard.filtered) show_filter_msg($container);
 
     if(window.groupName == "status") {
-      var workflows = taskboard.get_workflows();
+      workflows = taskboard.get_workflows();
       if(workflows.length > 1) show_workflow_controls(workflows);
     }
 
@@ -88,6 +88,8 @@ var Taskboard = LiveUpdater.extend({
    * @param {string} [workflow] - The workflow to show
    */
   construct: function(groupData, ticketData, workflow) {
+    var groupName, ticketsInGroup, i;
+
     this.groupData = groupData;
     this.ticketData = ticketData;
     this.workflow = workflow;
@@ -101,9 +103,10 @@ var Taskboard = LiveUpdater.extend({
 
     this.ticketCount = this.groupCount = 0;
 
-    for(var i = 0; i < this.curGroupData.length; i ++) {
-      var groupName = this.curGroupData[i],
-          ticketsInGroup = this.curTicketData[groupName] || {};
+    for(i = 0; i < this.curGroupData.length; i ++) {
+      groupName = this.curGroupData[i];
+      ticketsInGroup = this.curTicketData[groupName] || {};
+
       this.groupsOrdered[i]  =
       this.groups[groupName] = new Group(this, groupName, i, ticketsInGroup);
     }
@@ -144,11 +147,13 @@ var Taskboard = LiveUpdater.extend({
       modal: true,
       autoOpen: false,
       close: function() {
+        var ticket;
+
         if(_this.$optDialog.data("done")) {
           _this.$optDialog.data("done", false);
         }
         else {
-          var ticket = _this.$optDialog.data("ticket");
+          ticket = _this.$optDialog.data("ticket");
           if(ticket) ticket.group.drop_in_place(ticket);
         }
         _this.reset_droppables();
@@ -204,15 +209,15 @@ var Taskboard = LiveUpdater.extend({
    * @memberof Taskboard
    */
   get_workflows: function() {
-    if(this.groupBy == "status") {
-      var workflows = [], workflow;
+    var workflows = [], workflow;
 
+    if(this.groupBy == "status") {
       for(workflow in this.ticketData) {
         if(this.ticketData.hasOwnProperty(workflow)) workflows.push(workflow);
       }
-
-      return workflows;
     }
+
+    return workflows;
   },
 
   /**
@@ -222,14 +227,14 @@ var Taskboard = LiveUpdater.extend({
    */
   order_groups_by_count: function() {
     var i = 0,
-        byCount = [], groupName;
+        byCount = [], groupName, group, pos, j;
 
     for(groupName in this.groups) {
       if(this.groups.hasOwnProperty(groupName)) {
-        var group = this.groups[groupName],
-            pos = -1;
+        group = this.groups[groupName];
+        pos = -1;
 
-        for(var j = 0; j < i; j ++) {
+        for(j = 0; j < i; j ++) {
           if(group.ticketCount > byCount[j][1]) {
             pos = j;
             break;
@@ -254,14 +259,15 @@ var Taskboard = LiveUpdater.extend({
    * @param {Array} [groups] - List of groups to show
    */
   filter_groups: function(groups) {
-    var x = 8,
-        i, group, groupName;
+    var x = 8, byCount, i, group, groupName, visible, filterLength;
 
     if(!groups) {
       if(this.groupCount > x) {
-        var byCount = this.order_groups_by_count();
+        byCount = this.order_groups_by_count();
+
         for (i = 0; i < this.groupCount; i ++) {
           group = byCount[i][0];
+
           if(i < x) {
             group.filter_show();
           }
@@ -287,15 +293,18 @@ var Taskboard = LiveUpdater.extend({
     else {
       for(groupName in this.groups) {
         if(this.groups.hasOwnProperty(groupName)) {
-          var visible = false;
+          visible = false;
+          filterLength = groups.length;
+
           group = this.groups[groupName];
-          var filterLength = groups.length;
+
           for(i = 0; i < filterLength; i ++) {
             if(group.name == groups[i]) {
               visible = true;
               break;
             }
           }
+
           if(visible) group.filter_show();
           else group.filter_hide();
         }
@@ -329,10 +338,12 @@ var Taskboard = LiveUpdater.extend({
    * @param {Ticket} ticket
    */
   set_valid_moves: function(ticket) {
-    if(this.groupBy == "status") {
-      var actions = ticket.tData.actions;
+    var groupName, actions;
 
-      for(var groupName in this.groups) {
+    if(this.groupBy == "status") {
+      actions = ticket.tData.actions;
+
+      for(groupName in this.groups) {
         if(!actions.hasOwnProperty(groupName)) {
           this.groups[groupName].$elBody.droppable("disable").addClass("disabled");
         }
@@ -376,13 +387,16 @@ var Taskboard = LiveUpdater.extend({
    * @memberof Taskboard
    */
   _process_status_move: function(ticket, newGroup, fromDialog) {
+    var action, data, i, operation;
+
     if(ticket.tData.actions.hasOwnProperty(newGroup.name)) {
-      var action = ticket.tData.actions[newGroup.name];
-      var data = { 'action': action[0] };
+      action = ticket.tData.actions[newGroup.name];
+      data = { action: action[0] };
 
       if(!fromDialog) {
-        for(var i = 0; i < action[1].length; i ++) {
-          var operation = action[1][i];
+        for(i = 0; i < action[1].length; i ++) {
+          operation = action[1][i];
+
           if(window.operationOptions.hasOwnProperty(operation)) {
             this.set_options(ticket, newGroup, window.operationOptions[operation]);
             return;
@@ -402,9 +416,7 @@ var Taskboard = LiveUpdater.extend({
    * @memberof Taskboard
    */
   _save_ticket_change: function(ticket, newData, fromDialog) {
-    ticket.freeze();
-
-    var _this = this,
+    var _this = this, xhr,
         url = window.tracBaseUrl + "taskboard",
         data = {
           '__FORM_TOKEN': window.formToken,
@@ -412,7 +424,10 @@ var Taskboard = LiveUpdater.extend({
           'ticket': ticket.id,
           'ts': ticket.tData.changetime
         };
-        $.extend(data, newData);
+
+    $.extend(data, newData);
+
+    ticket.freeze();
 
     // Add our dialog inputs to our post list
     if(fromDialog) {
@@ -421,7 +436,7 @@ var Taskboard = LiveUpdater.extend({
       });
     }
 
-    var xhr = $.post(url, data);
+    xhr = $.post(url, data);
 
     $.when(xhr).then(
       $.proxy(this, "_save_ticket_response", ticket),
@@ -439,7 +454,7 @@ var Taskboard = LiveUpdater.extend({
       ticket.save_failed_feedback(data.error);
     }
     else {
-      this.process_update(data, true);
+      this.process_update(data);
     }
   },
 
@@ -471,7 +486,8 @@ var Taskboard = LiveUpdater.extend({
    * @param {Boolean} byUser - Was action was triggered by user or general
    */
   process_update: function(data, textStatus, jqXHR) {
-    var byUser = arguments.length == 1;
+    var byUser = arguments.length == 1,
+        newData, wf, g, t, ticket, newTData, newGroup, oldGroup, op, i;
 
     // For every updated ticket, delete any existing data
     function delete_ticket_data(id) {
@@ -491,8 +507,7 @@ var Taskboard = LiveUpdater.extend({
     }
 
     if(data.tickets) {
-      var newData = data.tickets,
-          wf, g, t;
+      newData = data.tickets;
 
       if(this.groupBy == "status") {
         for(wf in newData) {
@@ -501,7 +516,9 @@ var Taskboard = LiveUpdater.extend({
               if(newData[wf].hasOwnProperty(g)) {
                 for(t in newData[wf][g]) {
                   if(newData[wf][g].hasOwnProperty(t)) {
-                    // Remove any instantiated tickets which have moved to another workflow
+
+                    // Remove any instantiated tickets which have moved
+                    // to another workflow
                     if(this.tickets[t] && wf != this.workflow) {
                       this.tickets[t].remove();
                     }
@@ -525,16 +542,17 @@ var Taskboard = LiveUpdater.extend({
         if(newData.hasOwnProperty(g)) {
           for(t in newData[g]) {
             if(newData[g].hasOwnProperty(t)) {
-              var ticket = this.tickets[t],
-                  newTData = newData[g][t],
-                  newGroup = this.groups[g];
+              ticket = this.tickets[t];
+              newTData = newData[g][t];
+              newGroup = this.groups[g];
 
               if(newGroup) {
                 if(ticket) {
-                  var oldGroup = ticket.group;
+                  oldGroup = ticket.group;
 
                   // If this is a change we don't already know about
                   if(ticket.tData.changetime != newTData.changetime) {
+
                     // If the groups are different, update group counts too
                     if(newGroup != oldGroup) {
                       if(newGroup) newGroup.ticket_added();
@@ -546,15 +564,17 @@ var Taskboard = LiveUpdater.extend({
                     }
                   }
                 }
+
+                // Ticket moved into query's scope, instantiate
                 else {
-                  // Ticket moved into query's scope, instantiate
                   this.tickets[t] = new Ticket(newGroup, t, newTData);
                   this.ticketCount ++;
                   newGroup.ticketCount ++;
                 }
               }
+
+              // We've never seen this group before, reload taskboard entirely
               else {
-                // We've never seen this group before, reload taskboard entirely
                 this.refresh();
               }
             }
@@ -564,8 +584,6 @@ var Taskboard = LiveUpdater.extend({
       }
     }
     if(data.ops) {
-      var op;
-
       for(op in data.ops) {
         if(data.ops.hasOwnProperty(op)) {
           window.operationOptions[op] = data.ops[op];
@@ -575,8 +593,6 @@ var Taskboard = LiveUpdater.extend({
     // If a ticket is changed outside of our current query's scope, then we need
     // To check if it's currently in our taskboard, and if it is, remove it.
     if(data.otherChanges) {
-      var i;
-
       for(i = 0; i < data.otherChanges.length; i ++) {
         if(this.tickets[data.otherChanges[i]]) {
           this.tickets[data.otherChanges[i]].remove();
@@ -590,9 +606,7 @@ var Taskboard = LiveUpdater.extend({
    * @memberof Taskboard
    */
   update_ticket_counts: function() {
-    var groupName;
-
-    for(groupName in this.groups) {
+    for(var groupName in this.groups) {
       if(this.groups.hasOwnProperty(groupName)) {
         this.groups[groupName].update_ticket_count();
       }
@@ -608,18 +622,19 @@ var Taskboard = LiveUpdater.extend({
    * @param {Array} operation - [<action>, <action label>, <input HTML>, <outcome label>]
    */
   set_options: function(ticket, newGroup, operation) {
-    this.$optDialog.data({
-      "ticket": ticket,
-      "group": newGroup
-    });
-    this.$optDialog.html(operation[2]);
+    this.$optDialog.html(operation[2])
+      .dialog({ title: operation[1] })
+      .dialog("open")
+      .data({
+        ticket: ticket,
+        group: newGroup
+      });
+
     $("select", this.$optDialog).select2({
       width: "off",
-      adaptContainerCssClass: function(cls) { return null; },
-      dropdownCssClass: "ui-dialog"
+      dropdownCssClass: "ui-dialog",
+      adaptContainerCssClass: function(cls) { return null; }
     });
-    this.$optDialog.dialog({ title: operation[1] })
-                  .dialog("open");
   },
 
   /**
@@ -627,9 +642,7 @@ var Taskboard = LiveUpdater.extend({
    * @memberof Taskboard
    */
   reset_droppables: function() {
-    var group;
-
-    for(group in this.groups) {
+    for(var group in this.groups) {
       if(this.groups.hasOwnProperty(group)) {
         this.groups[group].$elBody.droppable("enable").removeClass("over disabled");
       }
@@ -665,19 +678,19 @@ var Taskboard = LiveUpdater.extend({
   _refresh_success: function(data, textStatus, jqXHR) {
     var _this = this;
 
-    this.teardown();
-
     // Throw all of our data into the window object
     $.extend(window, data);
 
+    this.teardown();
     this.construct(data.groups, data.tickets, data.currentWorkflow);
+
     if(this.$loadMsg) {
-      setTimeout(function() {
+      $.wait(1000).then(function() {
         _this.$loadMsg.fadeOut(function() {
           _this.$loadMsg.remove();
           delete _this.$loadMsg;
         });
-      }, 1000);
+      });
     }
   },
 
@@ -697,11 +710,8 @@ var Taskboard = LiveUpdater.extend({
    */
   change_workflow: function(workflow) {
     if(this.ticketData[workflow]) {
-      var t = this.ticketData,
-          g = this.groupData;
-
       this.teardown();
-      this.construct(g, t, workflow);
+      this.construct(this.groupData, this.ticketData, workflow);
     }
   },
 
@@ -717,11 +727,13 @@ var Taskboard = LiveUpdater.extend({
         this.tickets[ticket].remove();
       }
     }
+
     for(groupName in this.groups) {
       if(this.groups.hasOwnProperty(groupName)) {
         this.groups[groupName].remove();
       }
     }
+
     delete this.tickets;
     delete this.ticketData;
     delete this.groups;
@@ -756,6 +768,7 @@ var Group = Class.extend({
     this.ticketCount = 0;
 
     this.maxCount = 0;
+
     if(window.statusLimits) {
       this.maxCount = window.statusLimits[this.name] || 0;
     }
@@ -779,11 +792,14 @@ var Group = Class.extend({
    * @memberof Group
    */
   _draw_head: function() {
-    this.$elHead = $("<th class='cf'></th>");
     var avatar = (((window.userData||{})[this.name]||{})).avatar;
+
+    this.$elHead = $("<th class='cf'></th>");
+
     if(avatar) {
       this.$elHead.append("<img class='hidden-phone group-avatar' src='" + avatar + "' a />");
     }
+
     this.$elHead.append("<div class='group-count hidden-phone'></div>");
     this.$elHead.append("<div class='group-name'>" + this.get_visual_name() + "</div>");
     $("thead tr", this.taskboard.$el).append(this.$elHead);
@@ -798,11 +814,13 @@ var Group = Class.extend({
     var ticketId;
 
     this.$elBody = $("<td class='tickets'></td>");
+
     for(ticketId in this.ticketData) {
       if(this.ticketData.hasOwnProperty(ticketId)) {
         this.taskboard.tickets[ticketId] = new Ticket(this, ticketId, this.ticketData[ticketId]);
       }
     }
+
     this.$elBody.data("_self", this);
     $("tbody tr", this.taskboard.$el).append(this.$elBody);
   },
@@ -813,6 +831,7 @@ var Group = Class.extend({
    */
   set_events: function() {
     var _this = this;
+
     this.$elBody.droppable({
       accept:'div.ticket',
       over: function(e, ui) {
@@ -882,14 +901,14 @@ var Group = Class.extend({
    * @param {Ticket} ticket
    */
   drop_in_place: function(ticket) {
-    var $ticketsInContainer = $(".ticket", this.$elBody);
+    var $ticketsInContainer = $(".ticket", this.$elBody), pos;
 
     // No tickets in container
     if(!$ticketsInContainer.length) {
       ticket.$el.appendTo(this.$elBody);
     }
     else {
-      var pos = this._calculate_new_position(ticket);
+      pos = this._calculate_new_position(ticket);
 
       // If no position to insert, append to container
       if(pos == -1) {
@@ -919,6 +938,7 @@ var Group = Class.extend({
         return false;
       }
     });
+
     return pos;
   },
 
@@ -1007,17 +1027,20 @@ var Ticket = Class.extend({
    * @memberof Ticket
    */
   draw: function() {
+    var statsLength = this.statFields.length, i;
+
     this.$el = $("<div class='ticket' id='ticket-" + this.id + "'></div>");
     this.$elWait =  $("<div class='wait'><div class='indicators'></div></div>").appendTo(this.$el);
     this.$el.data("_self", this);
     this.$el.append("<a href='" + window.tracBaseUrl + "ticket/" + this.id + "' " +
                     "class='title unselectable tooltipped-above'>#" + this.id + ": <span></span></a>");
-    var statsLength = this.statFields.length;
-    for(var i = 0; i < statsLength; i ++) {
+
+    for(i = 0; i < statsLength; i ++) {
       this.$el.append("<div class='stat stat-" + this.statFields[i] + " unselectable'>" +
                        "<i class='icon-" + this.statFields[i] + "'></i> <span></span>" +
                      "</div>");
     }
+
     this.update_el();
     this.group.drop_in_place(this);
   },
@@ -1029,15 +1052,15 @@ var Ticket = Class.extend({
    * @memberof Ticket
    */
   update_el: function() {
-    var _this = this;
-    this.$el.attr("data-priority", this.tData.priority_value);
-    $(".title span", this.$el).text(_this.tData.summary);
-    $(".title", this.$el).attr("data-original-title",_this.tData.summary);
+    var statsLength = this.statFields.length, i, stat;
 
-    var statsLength = this.statFields.length;
-    for(var i = 0; i < statsLength; i ++) {
-      var stat = this.statFields[i];
-      $(".stat-" + stat + " span", this.$el).text(_this.tData[stat]);
+    this.$el.attr("data-priority", this.tData.priority_value);
+    $(".title span", this.$el).text(this.tData.summary);
+    $(".title", this.$el).attr("data-original-title", this.tData.summary);
+
+    for(i = 0; i < statsLength; i ++) {
+      stat = this.statFields[i];
+      $(".stat-" + stat + " span", this.$el).text(this.tData[stat]);
     }
   },
 
@@ -1054,6 +1077,7 @@ var Ticket = Class.extend({
       $.each(_this.errorInfo, function(i, msg) {
         $list.append("<li>" + msg + "</li>");
       });
+
       _this.group.taskboard.$failDialog.data("ticket", _this).dialog("open");
     });
 
@@ -1087,8 +1111,10 @@ var Ticket = Class.extend({
   update: function(data, byUser, newGroup) {
     this.tData = data;
     this.update_el();
+
     if(newGroup) {
       this.group = newGroup;
+
       if(byUser) {
         this.save_ok_feedback();
       }
@@ -1119,17 +1145,17 @@ var Ticket = Class.extend({
    * @returns {Boolean} True = above, False = below
    */
   greater_than: function(other) {
+    var i, thisFactor, otherFactor,
+      factors = [
+        [this._position_unset(), other._position_unset()],
+        [this.tData.position, other.tData.position],
+        [this.tData.priority_value, other.tData.priority_value],
+        [this.id, other.id]
+      ];
 
-    var factors = [
-      [this._position_unset(), other._position_unset()],
-      [this.tData.position, other.tData.position],
-      [this.tData.priority_value, other.tData.priority_value],
-      [this.id, other.id]
-    ];
-
-    for(var i = 0; i < factors.length; i ++) {
-      var thisFactor = factors[i][0],
-          otherFactor = factors[i][1];
+    for(i = 0; i < factors.length; i ++) {
+      thisFactor = factors[i][0];
+      otherFactor = factors[i][1];
 
       if(thisFactor != otherFactor) {
         return thisFactor < otherFactor;
@@ -1146,22 +1172,21 @@ var Ticket = Class.extend({
    */
   animate_move: function(intoGroup) {
     var _this = this,
-        needCopy;
+        needCopy, currentPos, newPos, parentOffset, newOffset, oldOffset;
 
     // We might also need to move the position within the group
     if(!intoGroup) {
-      var $ticketsInGroup = $(".ticket", this.group.$elBody),
-          currentPos = $ticketsInGroup.index(this.$el),
-          newPos = this.group._calculate_new_position(this);
+      currentPos = $(".ticket", this.group.$elBody).index(this.$el);
+      newPos = this.group._calculate_new_position(this);
 
       needCopy = currentPos != newPos;
     }
+
     if(intoGroup || needCopy) {
 
       // Calculate the current offset position, move the element, and recalculate
-      var parentOffset = this.$el.offsetParent().offset(),
-          oldOffset = this.$el.offset(),
-          newOffset;
+      parentOffset = this.$el.offsetParent().offset();
+      oldOffset = this.$el.offset();
 
       // We store the original and move the copy into .$el as 'waiting' user 
       // feedback is set against .$el
@@ -1172,48 +1197,51 @@ var Ticket = Class.extend({
 
       // Rewrite .$el with a clone
       this.$el = this.$el.clone().addClass("tmp").appendTo('#content');
+
       // Slide the original down, but make it appear as a placeholder
       this.$elOriginal.draggable("disable")
-                     .addClass("placeholder")
-                     .slideDown();
+        .addClass("placeholder")
+        .slideDown();
 
       // Set feedback against clone
       this.external_update_feedback(false);
 
       // Animate clone from original old's position to new
       this.$el.css('position', 'absolute')
-              .css('left', oldOffset.left - parentOffset.left)
-              .css('top', oldOffset.top - parentOffset.top)
-              .css('zIndex', 90)
-              .css('width', this.$elOriginal.width())
-              .animate({
-                'top': newOffset.top - parentOffset.top,
-                'left': newOffset.left - parentOffset.left
-              },
-              {
-                duration: 800,
-                complete: function() {
-
-                  // Once we're finished, remove the clone, and reinstate original
-                  setTimeout(function() {
-                    _this.$el.remove();
-                    _this.$el = _this.$elOriginal.draggable("enable")
-                                                 .removeClass("placeholder");
-
-                    // Nasty hack to force repainting on Win Chrome
-                    // without it, the UI is left with "streak marks" from the move
-                    // TODO remove when no longer needed
-                    if(isChrome && isWindows) {
-                      _this.group.$elBody.fadeOut(1, function() {
-                        _this.group.$elBody.fadeIn(1);
-                      });
-                    }
-                  }, 1000);
-                }
-              });
+        .css('left', oldOffset.left - parentOffset.left)
+        .css('top', oldOffset.top - parentOffset.top)
+        .css('zIndex', 90)
+        .css('width', this.$elOriginal.width())
+        .animate({
+            top: newOffset.top - parentOffset.top,
+            left: newOffset.left - parentOffset.left
+          },
+          {
+            duration: 800,
+            complete: function() {
+              $.wait(1000).then($.proxy(_this, "_animate_move_complete"));
+            }
+          });
     }
     else {
       this.external_update_feedback(true);
+    }
+  },
+
+  /**
+   * Once the move animation is complete, remove the clone and reinstate original
+   * @private
+   * @memberof Ticket
+   */
+  _animate_move_complete: function() {
+    this.$el.remove();
+    this.$el = this.$elOriginal.draggable("enable").removeClass("placeholder");
+
+    // Nasty hack to force repainting on Win Chrome
+    // without it, the UI is left with "streak marks" from the move
+    // TODO remove when no longer needed
+    if(isChrome && isWindows) {
+      this.group.$elBody.fadeOut(1).fadeIn(1);
     }
   },
 
@@ -1226,6 +1254,7 @@ var Ticket = Class.extend({
    */
   hide_wait: function(fade, delay, enable_after) {
     var _this = this;
+
     $(".wait", this.$el).delay(delay || 0).fadeOut(fade || 0, function() {
       if(enable_after) _this.$el.draggable("enable");
     });
@@ -1239,12 +1268,13 @@ var Ticket = Class.extend({
    * @param {Boolean} [disable=false] - Whether prevent the ticket from being dragged
    */
   show_wait: function(icon, fade, disable) {
-    var $wait = $(".wait", this.$el).clearQueue();
+    var $wait = $(".wait", this.$el).clearQueue().fadeIn(fade || 50);
+
     $(".indicators", $wait)
       .clearQueue()
       .removeAttr("class")
       .addClass("indicators " + icon);
-    $wait.fadeIn(fade || 50);
+
     if(disable) this.$el.draggable("disable");
   },
 
@@ -1258,10 +1288,11 @@ var Ticket = Class.extend({
     var $current_icon = $(".indicators", this.$el),
         $new_icon = $("<div></div>").addClass("indicators " + icon);
 
-    $current_icon.fadeOut(fade, function() {
-      $current_icon.after($new_icon).remove();
-      $new_icon.hide().fadeIn(fade);
-    });
+    $.when($current_icon.fadeOut(fade))
+      .then(function() {
+        $current_icon.after($new_icon).remove();
+        $new_icon.hide().fadeIn(fade);
+      });
   },
 
   /**
@@ -1309,6 +1340,7 @@ var Ticket = Class.extend({
     this.$el.slideUp(function() {
       $(this).remove();
     });
+
     delete this.group.taskboard.tickets[this.id];
     this.group.taskboard.ticketCount --;
     this.group.ticketCount --;
@@ -1355,21 +1387,25 @@ function event_toggle_fullscreen() {
  * @param {Taskboard} taskboard - The taskboard to communicate with
  */
 function init_filters(taskboard) {
-  var $filterSelect = $("#set-groups-select");
-  var groupsCount = taskboard.groupsOrdered.length;
-  for(var i = 0; i < groupsCount; i ++) {
-    var group = taskboard.groupsOrdered[i];
+  var $filterSelect = $("#set-groups-select"),
+      groupsCount = taskboard.groupsOrdered.length, i, group;
+
+  for(i = 0; i < groupsCount; i ++) {
+    group = taskboard.groupsOrdered[i];
     $filterSelect.append("<option value='" + group.name + "'" +
                         (group.visible ? " selected='selected'" : "") +
                         ">" + group.get_visual_name() + "</option>");
   }
+
   $filterSelect.select2({
     maximumSelectionSize:20
   });
+
   $filterSelect.on("change", function(e) {
     if(e.added)   taskboard.filter_add(e.added.id);
     if(e.removed) taskboard.filter_remove(e.removed.id);
   });
+
   $("#set-groups-clear").on("click", function() {
     $filterSelect.select2("val", "");
     taskboard.filter_groups([]);
@@ -1383,6 +1419,7 @@ function init_popovers() {
   $("#btn-groups-filter").popoverWith("#popover-groups", {
     title: "Filter groups"
   });
+
   $("#btn-change-workflow").popoverWith("#popover-workflows", {
     title: "Change workflow"
   });
@@ -1397,13 +1434,15 @@ function show_filter_msg($container) {
                        'The taskboard has been automatically filtered to show ' +
                        'only the group with the most results. Click to configure.' +
                      '</div>');
+
   $container.before($filterMsg);
 
   $(document).one("click", function() {
     $filterMsg.slideUp(function() {
       $filterMsg.remove();
     });
-    $("#btn-groups-filter").click();
+
+    $("#btn-groups-filter").trigger("click");
   });
 }
 
@@ -1411,19 +1450,20 @@ function show_filter_msg($container) {
  * Generate the select2 to control switching workflows
  */
 function show_workflow_controls(workflows) {
-  var $select = $("#popover-workflows select"), selected;
+  var $select = $("#popover-workflows select"), selected, i;
 
   $("#btn-change-workflow").addClass("show");
   $("#workflow-count").text(workflows.length);
 
-  for(var i = 0; i < workflows.length; i ++) {
+  for(i = 0; i < workflows.length; i ++) {
     selected = workflows[i] == taskboard.workflow ? " selected='selected'" : "";
     $select.append("<option" + selected + " >" + workflows[i] + "</option>");
   }
-  $select.select2({ width: "off" });
-  $select.on("change", function() {
-    taskboard.change_workflow($(this).val());
-  });
+
+  $select.select2({ width: "off" })
+    .on("change", function() {
+      taskboard.change_workflow($(this).val());
+    });
 }
 
 /**
@@ -1433,5 +1473,6 @@ function show_no_ticket_msg($container) {
   var $msg = $("<div class='box-info large take-color'>" +
                  "<h1><i class='icon-info-sign'></i> No Tickets Found</h1>" +
                "</div");
+
   $container.before($msg);
 }
