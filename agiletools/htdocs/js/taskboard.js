@@ -470,7 +470,8 @@ var Taskboard = LiveUpdater.extend({
    *   @param {Array}  data.otherChanges - ticket IDs which have changed but are not in scope
    * @param {Boolean} byUser - Was action was triggered by user or general
    */
-  process_update: function(data, byUser) {
+  process_update: function(data, textStatus, jqXHR) {
+    var byUser = arguments.length == 1;
 
     // For every updated ticket, delete any existing data
     function delete_ticket_data(id) {
