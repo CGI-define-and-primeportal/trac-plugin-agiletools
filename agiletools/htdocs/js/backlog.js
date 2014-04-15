@@ -1091,6 +1091,11 @@ var BacklogMilestone = LiveUpdater.extend({
     }
   },
 
+  /**
+   * Process the move selection request from the server
+   * @private
+   * @memberof BacklogMilestone
+   */
   _move_selection_response: function(neighbour, $move, data, textStatus, jqXHR) {
     if(data.hasOwnProperty("errors")) {
       this.multi_pick_show_errors(data.errors);

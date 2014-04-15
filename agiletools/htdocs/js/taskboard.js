@@ -480,10 +480,11 @@ var Taskboard = LiveUpdater.extend({
    * removing tickets which have changed their scope (i.e. a milestone change)
    * @memberof Taskboard
    * @param {Object} data - JSON object returned by the server
-   *   @param {Object} data.ticket - Ticket information
-   *   @param {Object} data.opts - Additional options
-   *   @param {Array}  data.otherChanges - ticket IDs which have changed but are not in scope
-   * @param {Boolean} byUser - Was action was triggered by user or general
+   *   @param {Object} [data.ticket] - Ticket information
+   *   @param {Object} [data.opts - Additional options
+   *   @param {Array}  [data.otherChanges] - ticket IDs which have changed but are not in scope
+   * @param {string} [textStatus] 
+   * @param {jqXHR} [jqXHR]
    */
   process_update: function(data, textStatus, jqXHR) {
     var byUser = arguments.length == 1,
