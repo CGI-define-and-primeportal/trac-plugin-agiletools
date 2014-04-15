@@ -8,7 +8,7 @@ $(document).ready(function() {
   // Add handles to head and body
   $("thead tr", $tables).prepend("<th class='rearrange-handle'></th>");
   $("tbody tr", $tables).each(function() {
-    $handle = $handle_prototype.clone().prependTo(this);
+    var $handle = $handle_prototype.clone().prependTo(this);
     $all_handles = $all_handles.add($handle);
   });
 

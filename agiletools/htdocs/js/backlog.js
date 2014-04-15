@@ -110,7 +110,7 @@ var Backlog = Class.extend({
           container.toggleClass("select2-disabled", _this.length == 4);
           return "<i class='icon-check-empty'></i> " + object.text;
         }
-      },
+      }
     });
 
     // See http://stackoverflow.com/a/17502602/1773904 
@@ -128,13 +128,13 @@ var Backlog = Class.extend({
         $("#backlog").children().removeClass("first-child")
                      .filter(":visible:first").addClass("first-child");
       },
-      stop: function(e, ui) {
+      stop: function(event, ui) {
         $(".first-child", "#backlog").removeClass("first-child");
 
         // Make a note of the new order by traversing the DOM
         _this.milestoneOrder = [];
-        $("> div", _this.$container).each(function(i, elem) {
-          _this.milestoneOrder.push($(elem).data("_self").name);
+        _this.$container.children("div").each(function() {
+          _this.milestoneOrder.push($(this).data("_self").name);
         });
 
         ui.item.removeAttr("style");
@@ -168,7 +168,7 @@ var Backlog = Class.extend({
     if(this.length < 4) {
 
       // Only add a milestone block if a valid name is supplied
-      if(name == "" || $.inArray(name, window.milestonesFlat) != -1) {
+      if(name === "" || $.inArray(name, window.milestonesFlat) !== -1) {
         this.length ++;
         this.milestones[name] = new BacklogMilestone(this, name);
         this.milestoneOrder.push(name);
@@ -227,8 +227,7 @@ var Backlog = Class.extend({
    * @param {Boolean} replace - Whether to use replaceState or pushState
    */
   update_url: function(replace) {
-    var _this = this
-        milestones = [];
+    var milestones = [];
 
     for(var i = 0; i < this.length; i ++) {
       var milestone = this.milestones[this.milestoneOrder[i]];
@@ -258,18 +257,20 @@ var Backlog = Class.extend({
     if(!this.firedPush) {
       var previousMilestones = History.getState().data,
           previousLength = previousMilestones.length,
-          unused = {};
+          unused = {}, current, i, oldMilestone;
 
       // Make a note of all current milestones and detach their DOM elements
       // Note detach* not remove, we don't want to remove events or data
-      for(var current in this.milestones) {
-        unused[current] = true;
-        this.milestones[current].$container.detach();
+      for(current in this.milestones) {
+        if(this.milestones.hasOwnProperty(current)) {
+          unused[current] = true;
+          this.milestones[current].$container.detach();
+        }
       }
 
       // Loop through all milestones we now need to show
       // Add them if they don't currently exist, and put them into the DOM
-      for(var i = 0; i < previousLength; i ++) {
+      for(i = 0; i < previousLength; i ++) {
         var name = previousMilestones[i];
 
         if(!(name in this.milestones)) {
@@ -281,8 +282,10 @@ var Backlog = Class.extend({
       }
 
       // Our unused object now contains references to no longer needed milestones
-      for(var oldMilestone in unused) {
-        this.milestones[oldMilestone].remove(false);
+      for(oldMilestone in unused) {
+        if(unused.hasOwnProperty(oldMilestone)) {
+          this.milestones[oldMilestone].remove(false);
+        }
       }
 
       // Swap our current data with the popstate data
@@ -342,9 +345,12 @@ var Backlog = Class.extend({
    * @memberof Backlog
    */
   set_spans: function() {
-    var spanLength = 12 / this.length;
-    for(var milestone in this.milestones) {
-      this.milestones[milestone].$container.attr("class", "span" + spanLength);
+    var spanLength = 12 / this.length, milestone;
+
+    for(milestone in this.milestones) {
+      if(this.milestones.hasOwnProperty(milestone)) {
+        this.milestones[milestone].$container.attr("class", "span" + spanLength);
+      }
     }
   },
 
@@ -447,13 +453,13 @@ var BacklogMilestone = LiveUpdater.extend({
       this.$mpPlaceholder = $("<div class='multi-pick-placeholder'></div>");
     }
 
-    this.$tktWrap   = $("<div class='tickets-wrap'></div>").appendTo(this.$container)
+    this.$tktWrap   = $("<div class='tickets-wrap'></div>").appendTo(this.$container);
     this.$table       = $("<table class='tickets'></table>").appendTo(this.$tktWrap);
     this.$tBody         =   $("<tbody><tr><td class='wait'><i class='icon-spin icon-spinner'></i></td></tr></tbody>").appendTo(this.$table);
     this.$tBody.data("_self", this);
 
 
-    if(this.name == "") {
+    if(this.name === "") {
       this.$container.attr("id", "product-backlog");
     }
 
@@ -465,7 +471,7 @@ var BacklogMilestone = LiveUpdater.extend({
    * @memberof BacklogMilestone
    */
   set_label: function() {
-    this.$title.text(this.name == "" ? "Product Backlog" : this.name);
+    this.$title.text(this.name === "" ? "Product Backlog" : this.name);
   },
 
   /**
@@ -478,12 +484,16 @@ var BacklogMilestone = LiveUpdater.extend({
     this.xhr = $.ajax({
       data: { "milestone": this.name },
       success: function(data, textStatus, jqXHR) {
+        var ticket;
+
         if(data.hasOwnProperty("tickets")) {
-          for(var ticket in data.tickets) {
-            _this.add_ticket(data.tickets[ticket]);
+          for(ticket in data.tickets) {
+            if(data.tickets.hasOwnProperty(ticket)) {
+              _this.add_ticket(data.tickets[ticket]);
+            }
           }
         }
-        if(_this.length == 0) _this.set_empty_message();
+        if(_this.length === 0) _this.set_empty_message();
         _this.set_sortable();
         _this._do_filter();
       }
@@ -508,7 +518,7 @@ var BacklogMilestone = LiveUpdater.extend({
    * @param {Object} tData - Ticket data
    */
   add_ticket: function(tData) {
-    if(this.length == 0) this.clear_empty_message();
+    if(this.length === 0) this.clear_empty_message();
     var ticket = new MilestoneTicket(this.backlog, this, tData);
     this._add_ticket_references(ticket);
   },
@@ -540,20 +550,24 @@ var BacklogMilestone = LiveUpdater.extend({
    * @memberof BacklogMilestone
    */
   set_stats: function() {
-    var selection = this.mpSelection || this.filterSelection || false;
+    var selection = this.mpSelection || this.filterSelection || false,
+        hours, tickets, selectedId;
+
     this.$stats.removeClass("selection filtered");
     if(selection) {
+      hours = tickets = 0;
       this.$stats.addClass(this.mpSelection ? "selection" : "filtered");
-      var hours = 0,
-          tickets = 0;
-      for(var selectedId in selection) {
-        tickets ++;
-        hours += selection[selectedId].tData.hours;
+
+      for(selectedId in selection) {
+        if(selection.hasOwnProperty(selectedId)) {
+          tickets ++;
+          hours += selection[selectedId].tData.hours;
+        }
       }
     }
     else {
-      var hours = this.total_hours,
-          tickets = this.length;
+      hours = this.total_hours;
+      tickets = this.length;
     }
     this.$stats.html(
       "<i class='icon-ticket'></i> " + tickets +
@@ -591,7 +605,7 @@ var BacklogMilestone = LiveUpdater.extend({
         },
         stop: function(event, ui) {
           var ticket = ui.item.data("_self"),
-              newParent = ui.item.parent().data("_self");
+              newParent = ui.item.parent().data("_self"),
               newIndex = $("tr", ui.item.parent()).index(ui.item);
 
           $(".none", ui.item.parent()).remove();
@@ -635,12 +649,12 @@ var BacklogMilestone = LiveUpdater.extend({
       return input.toString().toLowerCase();
     }
 
-    filters = {
+    var filters = {
       is_in: function(input, comparedWith) {
-        return search_friendly(comparedWith).indexOf(input) != -1;
+        return search_friendly(comparedWith).indexOf(input) !== -1;
       },
       starts_with: function(input, comparedWith) {
-        return search_friendly(comparedWith).indexOf(input) == 0;
+        return search_friendly(comparedWith).indexOf(input) === 0;
       },
       equals: function(input, comparedWith) {
         return search_friendly(comparedWith) == input;
@@ -668,19 +682,19 @@ var BacklogMilestone = LiveUpdater.extend({
    * @memberof BacklogMilestone
    */
   _do_filter: function() {
-    if(this.backlog.editable) this.multi_pick_stop();
     var query = $.trim(this.$filter.val().toLowerCase());
 
+    if(this.backlog.editable) this.multi_pick_stop();
     delete this.filterSelection;
 
     // Empty query, don't do anything
     // TODO - remove the additional check when we improve valueLabel
-    if(query == "" || query == "filter tickets...") {
+    if(query === "" || query === "filter tickets...") {
       this.$container.addClass("no-filter");
     }
 
     // If we enter a hash, then instead of filtering we scroll to the ticket
-    else if(query.indexOf("#") == 0) {
+    else if(query.indexOf("#") === 0) {
       var ticketId = query.substring(1);
 
       // We need relative positioning to calculate, but it prevents us
@@ -693,23 +707,24 @@ var BacklogMilestone = LiveUpdater.extend({
     }
 
     else {
-      this.$tktWrap.scrollTop(0);
 
       // Support multiple queries separated by a comma
       var queries = query.split(","),
           queriesLength = queries.length,
-          queries_sorted = [];
-          sortedLength = 0;
+          queries_sorted = [],
+          sortedLength = 0, usingFilter, i;
+
+      this.$tktWrap.scrollTop(0);
 
       // Parse our query
-      for(var i = 0; i < queriesLength ; i ++) {
-        var query = $.trim(queries[i]),
-            usingFilter = false;
+      for(i = 0; i < queriesLength ; i ++) {
+        query = $.trim(queries[i]);
+        usingFilter = false;
 
         // Check for keywords such as # or priority:
         // if we find one being used, but the value is blank, we disregard
         for(var filter in this._filter_map) {
-          if(query.indexOf(filter) == 0) {
+          if(query.indexOf(filter) === 0) {
             query = $.trim(query.substring(filter.length));
             if(query) {
               queries_sorted.push([query, this._filter_map[filter]]);
@@ -729,15 +744,18 @@ var BacklogMilestone = LiveUpdater.extend({
 
       // We've parsed our query and actually have something to check against
       if(sortedLength) {
+        var ticket_id;
 
         this.$container.removeClass("no-filter");
         this.filterSelection = {};
-        for(var ticket_id in this.tickets) {
-          var ticket = this.tickets[ticket_id],
-              visible = this._ticket_satisfies_query(ticket, queries_sorted);
+        for(ticket_id in this.tickets) {
+          if(this.tickets.hasOwnProperty(ticket_id)) {
+            var ticket = this.tickets[ticket_id],
+                visible = this._ticket_satisfies_query(ticket, queries_sorted);
 
-          ticket.toggle_visibility(visible);
-          if(visible) this.filterSelection[ticket_id] = ticket;
+            ticket.toggle_visibility(visible);
+            if(visible) this.filterSelection[ticket_id] = ticket;
+          }
         }
       }
 
@@ -760,12 +778,14 @@ var BacklogMilestone = LiveUpdater.extend({
    */
   _ticket_satisfies_query: function(ticket, queries) {
     var defaultFields = ["id", "summary"],
-        defaultLength = defaultFields.length;
+        defaultLength = defaultFields.length,
+        passesTests = false,
+        input, filter;
 
     for(var i = 0; i < queries.length; i ++) {
-      var input = queries[i][0],
-          filter = queries[i][1],
-          passesTests = false;
+      input = queries[i][0];
+      filter = queries[i][1];
+      passesTests = false;
 
       // Using a filter
       if(filter) {
@@ -810,7 +830,9 @@ var BacklogMilestone = LiveUpdater.extend({
   remove_all_tickets: function() {
     this.xhr.abort();
     for(var ticket in this.tickets) {
-      this.tickets[ticket].remove();
+      if(this.tickets.hasOwnProperty(ticket)) {
+        this.tickets[ticket].remove();
+      }
     }
   },
 
@@ -858,7 +880,7 @@ var BacklogMilestone = LiveUpdater.extend({
       var height = Math.min(Math.max(_this.mpMinHeight, e.pageY - offset + (1.5*_this.mpMinHeight)), maxHeight);
       _this.$multiPick.css("height", height);
     });
-    $(document).one("mouseup", function() {_this.multi_pick_process() });
+    $(document).one("mouseup", function() {_this.multi_pick_process(); });
   },
 
   /**
@@ -866,8 +888,7 @@ var BacklogMilestone = LiveUpdater.extend({
    * @memberof BacklogMilestone
    */
   multi_pick_all: function() {
-    var _this = this,
-        mpHeight = this.$multiPick.height(),
+    var mpHeight = this.$multiPick.height(),
         totalHeight = this.$tktWrap.height() + mpHeight;
 
     this.mpMinHeight = mpHeight;
@@ -975,7 +996,7 @@ var BacklogMilestone = LiveUpdater.extend({
     for(var i = 0; i < this._errors.length; i ++) {
       var ticketId = this._errors[i][0],
           ticketErrors = this._errors[i][1],
-          $tErrors = $("<li>Errors for ticket #"+ ticketId + "</li>").appendTo($list);
+          $tErrors = $("<li>Errors for ticket #"+ ticketId + "</li>").appendTo($list),
           $tList = $("<ul></ul>").appendTo($tErrors);
 
       for(var j = 0; j < ticketErrors.length; j ++) {
@@ -1025,17 +1046,22 @@ var BacklogMilestone = LiveUpdater.extend({
   move_selection: function() {
     var $moveIcon = $("i", this.$moveTicketsBtn);
     if(!$moveIcon.hasClass("icon-spinner")) {
-      $moveIcon.attr("class", "icon-spin icon-spinner");
       var _this = this,
           ticketChangetimes = [],
           ticketIds = [],
           neighbour = this.$container.next().data("_self");
 
+      $moveIcon.attr("class", "icon-spin icon-spinner");
+
       if(neighbour) {
-        for(var selectedId in this.mpSelection) {
-          var ticket = this.mpSelection[selectedId];
-          ticketChangetimes.push(ticket.tData.changetime);
-          ticketIds.push(ticket.tData.id);
+        var selectedId;
+
+        for(selectedId in this.mpSelection) {
+          if(this.mpSelection.hasOwnProperty(selectedId)) {
+            var ticket = this.mpSelection[selectedId];
+            ticketChangetimes.push(ticket.tData.changetime);
+            ticketIds.push(ticket.tData.id);
+          }
         }
         $.ajax({
           type: "POST",
@@ -1115,8 +1141,8 @@ var MilestoneTicket = Class.extend({
         this.tData.type.substring(0, 3) +
       "</td>" +
       "<td class='summary'>" +
-        "<a href='" + window.tracBaseUrl + "ticket/" + this.tData.id + "'>"
-          + this.tData.summary +
+        "<a href='" + window.tracBaseUrl + "ticket/" + this.tData.id + "'>" +
+          this.tData.summary +
         "</a>" +
       "</td>" +
     "</tr>");
@@ -1203,22 +1229,22 @@ var MilestoneTicket = Class.extend({
         data = { 
           '__FORM_TOKEN': window.formToken,
           'ticket': this.tData.id,
-          'ts': this.tData['changetime']
+          'ts': this.tData.changetime
         };
 
     this.show_wait();
 
     if($next.length) {
-      data['relative_direction'] = "before";
-      data['relative'] = $next.data("_self").tData.id;
+      data.relative_direction = "before";
+      data.relative = $next.data("_self").tData.id;
     }
     else if($prev.length) {
-      data['relative_direction'] = "after";
-      data['relative'] = $prev.data("_self").tData.id;
+      data.relative_direction = "after";
+      data.relative = $prev.data("_self").tData.id;
     }
 
     if(newParent.name != this.milestone.name) {
-      data['milestone'] = newParent.name;
+      data.milestone = newParent.name;
     }
 
     $.ajax({
@@ -1229,7 +1255,7 @@ var MilestoneTicket = Class.extend({
           _this.backlog.move_ticket(_this, _this.milestone, newParent);
 
           // Set empty message if the last ticket moved out of group
-          if(_this.milestone.length == 0) {
+          if(_this.milestone.length === 0) {
             _this.milestone.set_empty_message();
             _this.backlog.refresh_sortables();
           }
@@ -1246,7 +1272,7 @@ var MilestoneTicket = Class.extend({
           _this.show_error(data.errors, newParent);
         }
       }
-    })
+    });
   },
 
   /**
@@ -1281,7 +1307,7 @@ var MilestoneTicket = Class.extend({
    * @memberof MilestoneTicket
    */
   remove: function() {
-    this.backlog._remove_ticket_references(this)
+    this.backlog._remove_ticket_references(this);
     this.milestone._remove_ticket_references(this);
     this.$container.remove();
   }
@@ -1320,14 +1346,14 @@ function milestones_from_query() {
       initials = [];
 
   if("m" in query) {
-    initials = (query["m"] instanceof Array) ? query["m"] : [query["m"]];
+    initials = (query.m instanceof Array) ? query.m : [query.m];
   }
 
   else {
     var topLevel = window.milestones.results;
     initials.push("");
     if(topLevel.length > 1) {
-      firstMilestone = topLevel[1];
+      var firstMilestone = topLevel[1];
       initials.push(firstMilestone.text);
       if(firstMilestone.children.length > 0) {
         initials.push(firstMilestone.children[0].text);

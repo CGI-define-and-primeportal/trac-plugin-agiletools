@@ -3,8 +3,9 @@
 var LiveUpdater = Class.extend({
 
   init_updates: function(opts) {
-    var opts = opts || {},
-        _this = this;
+    var _this = this;
+
+    opts = opts || {};
 
     this.updateCount = 0;
     this.interval = opts.interval || 5; // In seconds
