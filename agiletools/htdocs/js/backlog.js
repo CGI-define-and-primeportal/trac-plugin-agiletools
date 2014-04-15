@@ -402,12 +402,12 @@ var BacklogMilestone = LiveUpdater.extend({
     this.total_hours = 0;
     this.length = 0;
     this.tickets = {};
-    this.get_tickets();
+    this.get_tickets(true);
 
     // TODO make normal updates work normally
     // Complete refresh every 10 minutes
     this.init_updates({
-      dt: { "milestone": this.name },
+      data: { milestone: this.name },
       interval: 600,
       fullRefreshAfter: 1
     });
@@ -477,39 +477,51 @@ var BacklogMilestone = LiveUpdater.extend({
   /**
    * Make an Ajax call to retrieve a milestone's tickets
    * @memberof BacklogMilestone
+   * @param {Boolean} [first] - Whether this is the first run
+   * @returns {Deferred}
    */
-  get_tickets: function() {
-    var _this = this;
-    this.$tBody.html("");
-    this.xhr = $.ajax({
-      data: { "milestone": this.name },
-      success: function(data, textStatus, jqXHR) {
-        var ticket;
+  get_tickets: function(first) {
+    this.xhr = $.ajax({ data: { milestone: this.name } });
 
-        if(data.hasOwnProperty("tickets")) {
-          for(ticket in data.tickets) {
-            if(data.tickets.hasOwnProperty(ticket)) {
-              _this.add_ticket(data.tickets[ticket]);
-            }
-          }
+    $.when(this.xhr).then($.proxy(this, "_get_tickets_response", first));
+    return this.xhr;
+  },
+
+  /**
+   * With the response, add the tickets, set the sortables, and re-run the filter
+   * @private
+   * @memberof BacklogMilestone
+   */
+  _get_tickets_response: function(first, data, textStatus, jqXHR) {
+    var ticket;
+
+    if(!first) {
+      if(this.backlog.editable) this.multi_pick_stop();
+      this.remove_all_tickets();
+      this.$tBody.html("");
+    }
+
+    if(data.hasOwnProperty("tickets")) {
+      for(ticket in data.tickets) {
+        if(data.tickets.hasOwnProperty(ticket)) {
+          this.add_ticket(data.tickets[ticket]);
         }
-        if(_this.length === 0) _this.set_empty_message();
-        _this.set_sortable();
-        _this._do_filter();
       }
-    });
+    }
+    if(this.length === 0) this.set_empty_message();
+    this.set_sortable();
+    this._do_filter();
   },
 
   /**
    * LiveUpdater's complete refresh method
    * @memberof BacklogMilestone
    * @param {Boolean} removeFilter - Whether to remove 
+   * @returns {Promise}
    */
   refresh: function(removeFilter) {
     if(removeFilter) this.$filter.val("");
-    if(this.backlog.editable) this.multi_pick_stop();
-    this.remove_all_tickets();
-    this.get_tickets();
+    return this.get_tickets().promise();
   },
 
   /**
@@ -1044,17 +1056,17 @@ var BacklogMilestone = LiveUpdater.extend({
    * @memberof BacklogMilestone
    */
   move_selection: function() {
-    var $moveIcon = $("i", this.$moveTicketsBtn);
-    if(!$moveIcon.hasClass("icon-spinner")) {
+    var $move = $("i", this.$moveTicketsBtn);
+    if(!$move.hasClass("icon-spinner")) {
       var _this = this,
           ticketChangetimes = [],
           ticketIds = [],
           neighbour = this.$container.next().data("_self");
 
-      $moveIcon.attr("class", "icon-spin icon-spinner");
+      $move.attr("class", "icon-spin icon-spinner");
 
       if(neighbour) {
-        var selectedId;
+        var selectedId, xhr;
 
         for(selectedId in this.mpSelection) {
           if(this.mpSelection.hasOwnProperty(selectedId)) {
@@ -1063,28 +1075,32 @@ var BacklogMilestone = LiveUpdater.extend({
             ticketIds.push(ticket.tData.id);
           }
         }
-        $.ajax({
+
+        xhr = $.ajax({
           type: "POST",
           data: {
             '__FORM_TOKEN': window.formToken,
             'tickets': ticketIds.join(","),
             'changetimes': ticketChangetimes.join(","),
             'milestone': neighbour.name
-          },
-          success: function(data, textStatus, jqXHR) {
-            if(data.hasOwnProperty("errors")) {
-              _this.multi_pick_show_errors(data.errors);
-            }
-
-            neighbour.refresh(true);
-            _this.refresh(true);
-
-            _this.mp_running = false;
-            $moveIcon.attr("class", "icon-chevron-right hidden");
           }
         });
+
+        $.when(xhr).then($.proxy(this, "_move_selection_response", neighbour, $move));
       }
     }
+  },
+
+  _move_selection_response: function(neighbour, $move, data, textStatus, jqXHR) {
+    if(data.hasOwnProperty("errors")) {
+      this.multi_pick_show_errors(data.errors);
+    }
+
+    neighbour.refresh(true);
+    this.refresh(true);
+
+    this.mp_running = false;
+    $move.attr("class", "icon-chevron-right hidden");
   },
 
   /**
@@ -1222,15 +1238,14 @@ var MilestoneTicket = Class.extend({
    * @memberof MilestoneTicket
    */
   save_changes: function() {
-    var _this = this,
-        $next = this.$container.next(),
+    var $next = this.$container.next(),
         $prev = this.$container.prev(),
         newParent = this.$container.parent().data("_self"),
         data = { 
           '__FORM_TOKEN': window.formToken,
           'ticket': this.tData.id,
           'ts': this.tData.changetime
-        };
+        }, xhr;
 
     this.show_wait();
 
@@ -1247,32 +1262,40 @@ var MilestoneTicket = Class.extend({
       data.milestone = newParent.name;
     }
 
-    $.ajax({
+    xhr = $.ajax({
       type: "POST",
-      data: data,
-      success: function(data, textStatus, jqXHR) {
-        if(data.hasOwnProperty("tickets")) {
-          _this.backlog.move_ticket(_this, _this.milestone, newParent);
-
-          // Set empty message if the last ticket moved out of group
-          if(_this.milestone.length === 0) {
-            _this.milestone.set_empty_message();
-            _this.backlog.refresh_sortables();
-          }
-
-          _this.milestone = newParent;
-
-          // Update ticket data with new timestamp
-          if(data.tickets.length == 1) _this.tData = data.tickets[0];
-        }
-        if(!data.hasOwnProperty("errors")) {
-          _this.hide_wait();
-        }
-        else {
-          _this.show_error(data.errors, newParent);
-        }
-      }
+      data: data
     });
+
+    $.when(xhr).then($.proxy(this, "_save_changes_response"));
+  },
+
+  /**
+   * Process the save request from the server
+   * @memberof MilestoneTicket
+   * @private
+   */
+  _save_changes_response: function(data, textStatus, jqXHR) {
+    if(data.hasOwnProperty("tickets")) {
+      this.backlog.move_ticket(this, this.milestone, newParent);
+
+      // Set empty message if the last ticket moved out of group
+      if(this.milestone.length === 0) {
+        this.milestone.set_empty_message();
+        this.backlog.refresh_sortables();
+      }
+
+      this.milestone = newParent;
+
+      // Update ticket data with new timestamp
+      if(data.tickets.length == 1) this.tData = data.tickets[0];
+    }
+    if(!data.hasOwnProperty("errors")) {
+      this.hide_wait();
+    }
+    else {
+      this.show_error(data.errors, newParent);
+    }
   },
 
   /**

@@ -421,23 +421,42 @@ var Taskboard = LiveUpdater.extend({
       });
     }
 
-    $.post(url, data, function(data, status, jqXHR) {
-      if(data.error) {
-        ticket.save_failed_feedback(data.error);
-      }
-      else {
-        _this.process_update(data, true);
-      }
-    }).fail(function(jqXHR) {
-      var errors = [jqXHR.status + ": " + jqXHR.statusText],
-          $feedback = $(jqXHR.responseText).contents().find("#content.error"),
-          $errorCode = $(".message pre", $feedback);
+    var xhr = $.post(url, data);
 
-      if($errorCode.length) {
-        errors.push("Error code: " + $errorCode.html());
-      }
-      ticket.save_failed_feedback(errors);
-    });
+    $.when(xhr).then(
+      $.proxy(this, "_save_ticket_response", ticket),
+      $.proxy(this, "_save_ticket_fail", ticket)
+    );
+  },
+
+  /**
+   * Retrieve the response from the server, and process for success / errors
+   * @private
+   * @memberof Taskboard 
+   */
+  _save_ticket_response: function(ticket, data, status, jqXHR) {
+    if(data.error) {
+      ticket.save_failed_feedback(data.error);
+    }
+    else {
+      this.process_update(data, true);
+    }
+  },
+
+  /**
+   * The server failed to respond appropriately, try to find out why
+   * @private
+   * @memberof Taskboard 
+   */
+  _save_ticket_fail: function(ticket, jqXHR) {
+    var errors = [jqXHR.status + ": " + jqXHR.statusText],
+        $feedback = $(jqXHR.responseText).contents().find("#content.error"),
+        $errorCode = $(".message pre", $feedback);
+
+    if($errorCode.length) {
+      errors.push("Error code: " + $errorCode.html());
+    }
+    ticket.save_failed_feedback(errors);
   },
 
   /**
@@ -617,34 +636,57 @@ var Taskboard = LiveUpdater.extend({
   },
 
   /**
-   * Completely refresh the taskboard. Useful when minute differences are not picked up
+   * Completely refresh the task board. Useful when minute differences are not picked up
    * @memberof Taskboard
    * @param {Boolean} [notify] - whether to make the update evident to the user
+   * @returns {Promise}
    */
   refresh: function(notify) {
-    var _this = this;
+    var xhr = $.ajax();
+
     if(notify) {
-      var $loadMsg = $("<div class='taskboard-refresh'>" +
-                       "<i class='icon-refresh icon-spin color-info'></i>" +
-                     "</div>").appendTo(this.$container);
+      this.$loadMsg = $("<div class='taskboard-refresh'>" +
+                        "<i class='icon-refresh icon-spin color-info'></i>" +
+                        "</div>").appendTo(this.$container);
     }
-    $.ajax({
-      success:function(data, textStatus, jqXHR) {
-        _this.teardown();
 
-        // Throw all of our data into the window object
-        $.extend(window, data);
+    $.when(xhr).then($.proxy(this, "_refresh_success"),
+                     $.proxy(this, "_refresh_fail"));
 
-        _this.construct(data.groups, data.tickets, data.currentWorkflow);
-        if(notify) {
-          setTimeout(function() {
-            $loadMsg.fadeOut(function() {
-              $loadMsg.remove();
-            });
-          }, 1000);
-        }
-      }
-    });
+    return xhr.promise();
+  },
+
+  /**
+   * Once the Deferred is resolved, tear the task board down and rebuild
+   * @private
+   * @memberof Taskboard
+   */
+  _refresh_success: function(data, textStatus, jqXHR) {
+    var _this = this;
+
+    this.teardown();
+
+    // Throw all of our data into the window object
+    $.extend(window, data);
+
+    this.construct(data.groups, data.tickets, data.currentWorkflow);
+    if(this.$loadMsg) {
+      setTimeout(function() {
+        _this.$loadMsg.fadeOut(function() {
+          _this.$loadMsg.remove();
+          delete _this.$loadMsg;
+        });
+      }, 1000);
+    }
+  },
+
+  /**
+   * If the Deferred is rejected, reload the page altogether
+   * @private
+   * @memberof Taskboard
+   */
+  _refresh_fail: function() {
+    window.location.reload();
   },
 
   /**
@@ -670,7 +712,7 @@ var Taskboard = LiveUpdater.extend({
     var ticket, groupName;
 
     for(ticket in this.tickets) {
-      if(this.ticket.hasOwnProperty(ticket)) {
+      if(this.tickets.hasOwnProperty(ticket)) {
         this.tickets[ticket].remove();
       }
     }
@@ -684,7 +726,7 @@ var Taskboard = LiveUpdater.extend({
     delete this.groups;
     delete this.groupsOrdered;
     delete this.groupData;
-    clearInterval(this.upInterval);
+    clearTimeout(this.updateTimeout);
   }
 });
 

@@ -8,34 +8,51 @@ var LiveUpdater = Class.extend({
     opts = opts || {};
 
     this.updateCount = 0;
-    this.interval = opts.interval || 5; // In seconds
+    this.interval = (opts.interval || 5) * 1000;
     this.fullRefreshAfter = opts.fullRefreshAfter || 120;
-    this.dt = opts.dt || {};
+    this.updateData = opts.data || {};
+
     this.lastUpdate = this.iso_8601_datetime(new Date());
-    this.upInterval = setInterval(function() {
-      _this.updateCount ++;
-      // Do a complete refresh every 10 mins
-      if(_this.updateCount % _this.fullRefreshAfter === 0) {
-        _this.refresh();
-      }
-      else {
-        _this.get_updates();
-      }
-    }, _this.interval * 1000);
+    this._queue_update();
   },
 
-  get_updates: function() {
-    var _this = this,
-        now = this.iso_8601_datetime(new Date());
-    $.ajax({
+  _get_updates: function() {
+    this.updateCount ++;
+
+    // Full refresh: We don't know how to deal with an unsuccessful refresh,
+    // This should be implemented by the user of LiveUpdater, as it may involve
+    // a full page refresh e.g.
+    if(this.updateCount % this.fullRefreshAfter === 0) {
+      $.when(this.refresh())
+        .then($.proxy(this, "_queue_update"));
+    }
+
+    // Standard update: by default a request for changes between two times
+    else {
+      $.when(this.get_update())
+        .then($.proxy(this, "process_update"),
+              $.proxy(this, "process_update_fail"))
+        .always($.proxy(this, "_queue_update"));
+    }
+  },
+
+  _queue_update: function() {
+    var _this = this;
+
+    this.updateTimeout = setTimeout(function() { 
+      _this._get_updates();
+    }, this.interval);
+  },
+
+  get_update: function() {
+    var previous = this.lastUpdate;
+    this.lastUpdate = this.iso_8601_datetime(new Date());
+
+    return $.ajax({
       data: $.extend({
-        'from': this.lastUpdate,
-        'to': now
-      }, this.dt),
-      success:function(data, textStatus, jqXHR) {
-        _this.process_update(data);
-        _this.lastUpdate = now;
-      }
+        from: previous,
+        to: this.lastUpdate
+      }, this.updateData),
     });
   },
 
@@ -49,12 +66,10 @@ var LiveUpdater = Class.extend({
         pad(date.getUTCSeconds()) + 'Z';
   },
 
-  // Replace with unique process event
-  process_update: function(data) {
-  },
-
-  // Replace with unique complete refresh
-  refresh: function() {
-  }
-
+  /**
+   * API methods
+   */
+  process_update: function(data, textStatus, jqXHR) {},
+  process_update_fail: function(jqXHR, textStatus, errorThrown) {},
+  refresh: function() {}
 });
