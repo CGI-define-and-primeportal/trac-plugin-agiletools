@@ -20,7 +20,7 @@
  * @requires history.js (https://github.com/browserstate/history.js/)
  * ========================================================================== */
 
-(function($) {
+(function($) { "use strict";
 
   $(document).ready(function() {
     var backlog;

@@ -1,4 +1,4 @@
-(function($) {
+(function($) { "use strict";
 
   // TASKBOARD PUBLIC CLASS DEFINITION
   // =================================

@@ -18,7 +18,7 @@
  * @requires Resig's Simple Inheritence Model (http://goo.gl/lWUkve)
  * ========================================================================== */
 
-(function($) {
+(function($) { "use strict";
 
   var taskboard,
       isChrome = "chrome" in window,
@@ -1423,6 +1423,7 @@
    * Toggle between condensed and expanded view
    */
   function event_toggle_condensed() {
+    /*jshint validthis: true */
     $("i", this).toggleClass("icon-th-large icon-th");
     $("#content").toggleClass("view-condensed");
   }
@@ -1431,6 +1432,7 @@
    * Toggle fullscreen mode
    */
   function event_toggle_fullscreen() {
+    /*jshint validthis: true */
     $("i", this).toggleClass("icon-fullscreen icon-resize-small");
     $("body").toggleClass("fullscreen");
   }
