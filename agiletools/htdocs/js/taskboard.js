@@ -18,1462 +18,1466 @@
  * @requires Resig's Simple Inheritence Model (http://goo.gl/lWUkve)
  * ========================================================================== */
 
-var taskboard,
-    isChrome = "chrome" in window,
-    isWindows = navigator.userAgent.toLowerCase().indexOf("windows") != -1;
+(function($) {
 
-// DOCUMENT READY CALL
-// ===================
-$(document).ready(function() {
-  var $container = $("#taskboard-container"), workflows;
+  var taskboard,
+      isChrome = "chrome" in window,
+      isWindows = navigator.userAgent.toLowerCase().indexOf("windows") != -1;
 
-  // Only instantiate the taskboard if we have ticket data
-  if(window.tickets) {
-    taskboard = new Taskboard("taskboard", $container, window.groupName,
-                              window.groups, window.tickets, window.currentWorkflow);
+  // DOCUMENT READY CALL
+  // ===================
+  $(document).ready(function() {
+    var $container = $("#taskboard-container"), workflows;
 
-    init_popovers();
-    init_filters(taskboard);
-    if(taskboard.filtered) show_filter_msg($container);
+    // Only instantiate the taskboard if we have ticket data
+    if(window.tickets) {
+      taskboard = new Taskboard("taskboard", $container, window.groupName,
+                                window.groups, window.tickets, window.currentWorkflow);
 
-    if(window.groupName == "status") {
-      workflows = taskboard.get_workflows();
-      if(workflows.length > 1) show_workflow_controls(workflows);
-    }
+      init_popovers();
+      init_filters(taskboard);
+      if(taskboard.filtered) show_filter_msg($container);
 
-    $("#taskboard-controls").addClass("visible");
-    $("#btn-switch-view").on("click", event_toggle_condensed);
-    $("#btn-fullscreen").on("click", event_toggle_fullscreen);
-  }
-  else {
-    show_no_ticket_msg($container);
-  }
-
-  event_change_query();
-});
-
-
-// @namespace
-// TASKBOARD PUBLIC CLASS DEFINITION
-// =================================
-var Taskboard = LiveUpdater.extend({
-
-  /**
-   * Initialise a new task board
-   * @constructor
-   * @alias Taskboard
-   * @param {string} id - The HTML ID attribute to give the task board
-   * @param {JQuery} $container - The container to create the task board in
-   * @param {string} groupBy - The field to group the task board by
-   * @param {Object} groupData - The group data
-   * @param {Object} ticketData - The ticket data
-   * @param {string} [defaultWorkflow] - The initial workflow to show
-   */
-  init: function(id, $container, groupBy, groupData, ticketData, defaultWorkflow) {
-    this.id = id;
-    this.groupBy = groupBy;
-
-    this.$container = $container;
-    this.draw_table();
-    this.draw_dialogs();
-
-    this.construct(groupData, ticketData, defaultWorkflow);
-  },
-
-  /**
-   * Construct the task board, given group & ticket data, and optional workflow
-   * @memberof Taskboard
-   * @param {Object} groupData - The group data
-   * @param {Object} ticketData - The ticket data
-   * @param {string} [workflow] - The workflow to show
-   */
-  construct: function(groupData, ticketData, workflow) {
-    var groupName, ticketsInGroup, i;
-
-    this.groupData = groupData;
-    this.ticketData = ticketData;
-    this.workflow = workflow;
-
-    // Once instantiated, we keep track of our groups and tickets via these objects
-    this.groups = {};
-    this.groupsOrdered = [];
-    this.tickets = {};
-
-    this.set_data_object(this.workflow);
-
-    this.ticketCount = this.groupCount = 0;
-
-    for(i = 0; i < this.curGroupData.length; i ++) {
-      groupName = this.curGroupData[i];
-      ticketsInGroup = this.curTicketData[groupName] || {};
-
-      this.groupsOrdered[i]  =
-      this.groups[groupName] = new Group(this, groupName, i, ticketsInGroup);
-    }
-
-    this.update_ticket_counts();
-    this.filter_groups();
-    this.init_updates();
-  },
-
-  /**
-   * Draw the actual task board table
-   * @memberof Taskboard
-   */
-  draw_table: function() {
-    this.$el = $("<table id='"+this.id+"'>" +
-                  "<thead><tr></tr></thead>" +
-                  "<tbody><tr></tr></tbody>" +
-                "</table>");
-    this.$container.append(this.$el);
-  },
-
-  /**
-   * Draw the dialogs for additional options and for ticket save fail description
-   * @memberof Taskboard
-   */
-  draw_dialogs: function() {
-    var _this = this;
-
-    this.$optDialog = $("<form id='" + this.id + "-op-dialog' class='hidden'></form>");
-    this.$failDialog = $("<div id='" + this.id + "-fail-dialog' class='hidden'>" +
-                          "Your ticket failed for the following reasons:" +
-                          "<ul></ul>" +
-                        "</div>");
-
-    this.$container.append(this.$optDialog, this.$failDialog);
-
-    this.$optDialog.dialog({
-      modal: true,
-      autoOpen: false,
-      close: function() {
-        var ticket;
-
-        if(_this.$optDialog.data("done")) {
-          _this.$optDialog.data("done", false);
-        }
-        else {
-          ticket = _this.$optDialog.data("ticket");
-          if(ticket) ticket.group.drop_in_place(ticket);
-        }
-        _this.reset_droppables();
-      },
-      buttons: {
-        Cancel: function() { $(this).dialog("close"); },
-        Save: function() {
-          var $dialog = $(this),
-              ticket = $dialog.data("ticket"),
-              newGroup = $dialog.data("group");
-
-          _this.process_move(ticket, newGroup, true);
-          $dialog.data("done", true).dialog("close");
-        }
+      if(window.groupName == "status") {
+        workflows = taskboard.get_workflows();
+        if(workflows.length > 1) show_workflow_controls(workflows);
       }
-    });
 
-    this.$failDialog.dialog({
-      modal: true,
-      autoOpen: false,
-      title: "Failed to save ticket",
-      close: function() {
-        var ticket = $(this).data("ticket");
-        ticket.hide_wait();
-        ticket.animate_move(true);
-      },
-      buttons: {
-        Close: function() { $(this).dialog("close"); }
-      }
-    });
-  },
-
-  /**
-   * When we're viewing tickets by status, we can't show multiple workflows at
-   * once, so the structure of tickets/groups is different. This interface
-   * returns the same structure for all group-by options
-   * @memberof Taskboard
-   * @param {string} [workflow] - The workflow get data for
-   */
-  set_data_object: function(workflow) {
-    if(workflow) {
-      this.curTicketData = this.ticketData[workflow];
-      this.curGroupData = this.groupData[workflow];
+      $("#taskboard-controls").addClass("visible");
+      $("#btn-switch-view").on("click", event_toggle_condensed);
+      $("#btn-fullscreen").on("click", event_toggle_fullscreen);
     }
     else {
-      this.curTicketData = this.ticketData;
-      this.curGroupData = this.groupData;
+      show_no_ticket_msg($container);
     }
-  },
 
-  /**
-   * Collect workflow names from the ticket data
-   * @memberof Taskboard
-   */
-  get_workflows: function() {
-    var workflows = [], workflow;
+    event_change_query();
+  });
 
-    if(this.groupBy == "status") {
-      for(workflow in this.ticketData) {
-        if(this.ticketData.hasOwnProperty(workflow)) workflows.push(workflow);
+
+  // @namespace
+  // TASKBOARD PUBLIC CLASS DEFINITION
+  // =================================
+  var Taskboard = $.LiveUpdater.extend({
+
+    /**
+     * Initialise a new task board
+     * @constructor
+     * @alias Taskboard
+     * @param {string} id - The HTML ID attribute to give the task board
+     * @param {JQuery} $container - The container to create the task board in
+     * @param {string} groupBy - The field to group the task board by
+     * @param {Object} groupData - The group data
+     * @param {Object} ticketData - The ticket data
+     * @param {string} [defaultWorkflow] - The initial workflow to show
+     */
+    init: function(id, $container, groupBy, groupData, ticketData, defaultWorkflow) {
+      this.id = id;
+      this.groupBy = groupBy;
+
+      this.$container = $container;
+      this.draw_table();
+      this.draw_dialogs();
+
+      this.construct(groupData, ticketData, defaultWorkflow);
+    },
+
+    /**
+     * Construct the task board, given group & ticket data, and optional workflow
+     * @memberof Taskboard
+     * @param {Object} groupData - The group data
+     * @param {Object} ticketData - The ticket data
+     * @param {string} [workflow] - The workflow to show
+     */
+    construct: function(groupData, ticketData, workflow) {
+      var groupName, ticketsInGroup, i;
+
+      this.groupData = groupData;
+      this.ticketData = ticketData;
+      this.workflow = workflow;
+
+      // Once instantiated, we keep track of our groups and tickets via these objects
+      this.groups = {};
+      this.groupsOrdered = [];
+      this.tickets = {};
+
+      this.set_data_object(this.workflow);
+
+      this.ticketCount = this.groupCount = 0;
+
+      for(i = 0; i < this.curGroupData.length; i ++) {
+        groupName = this.curGroupData[i];
+        ticketsInGroup = this.curTicketData[groupName] || {};
+
+        this.groupsOrdered[i]  =
+        this.groups[groupName] = new Group(this, groupName, i, ticketsInGroup);
       }
-    }
 
-    return workflows;
-  },
+      this.update_ticket_counts();
+      this.filter_groups();
+      this.init_updates();
+    },
 
-  /**
-   * Returns a nested-list of groups and their number of tickets
-   * @memberof Taskboard
-   * @returns {Array} [[<group>, <group-count>], ...]
-   */
-  order_groups_by_count: function() {
-    var i = 0,
-        byCount = [], groupName, group, pos, j;
+    /**
+     * Draw the actual task board table
+     * @memberof Taskboard
+     */
+    draw_table: function() {
+      this.$el = $("<table id='"+this.id+"'>" +
+                    "<thead><tr></tr></thead>" +
+                    "<tbody><tr></tr></tbody>" +
+                  "</table>");
+      this.$container.append(this.$el);
+    },
 
-    for(groupName in this.groups) {
-      if(this.groups.hasOwnProperty(groupName)) {
-        group = this.groups[groupName];
-        pos = -1;
+    /**
+     * Draw the dialogs for additional options and for ticket save fail description
+     * @memberof Taskboard
+     */
+    draw_dialogs: function() {
+      var _this = this;
 
-        for(j = 0; j < i; j ++) {
-          if(group.ticketCount > byCount[j][1]) {
-            pos = j;
-            break;
-          }
-        }
-        if(pos > -1) {
-          byCount.splice(j,0,[group, group.ticketCount]);
-        }
-        else {
-          byCount.push([group, group.ticketCount]);
-        }
-        i ++;
-      }
-    }
-    return byCount;
-  },
+      this.$optDialog = $("<form id='" + this.id + "-op-dialog' class='hidden'></form>");
+      this.$failDialog = $("<div id='" + this.id + "-fail-dialog' class='hidden'>" +
+                            "Your ticket failed for the following reasons:" +
+                            "<ul></ul>" +
+                          "</div>");
 
-  /**
-   * Filter the groups to only show a selection of them.
-   * If no groups supplied, show the most popular 8
-   * @memberof Taskboard 
-   * @param {Array} [groups] - List of groups to show
-   */
-  filter_groups: function(groups) {
-    var x = 8, byCount, i, group, groupName, visible, filterLength;
+      this.$container.append(this.$optDialog, this.$failDialog);
 
-    if(!groups) {
-      if(this.groupCount > x) {
-        byCount = this.order_groups_by_count();
+      this.$optDialog.dialog({
+        modal: true,
+        autoOpen: false,
+        close: function() {
+          var ticket;
 
-        for (i = 0; i < this.groupCount; i ++) {
-          group = byCount[i][0];
-
-          if(i < x) {
-            group.filter_show();
+          if(_this.$optDialog.data("done")) {
+            _this.$optDialog.data("done", false);
           }
           else {
-            group.filter_hide();
+            ticket = _this.$optDialog.data("ticket");
+            if(ticket) ticket.group.drop_in_place(ticket);
+          }
+          _this.reset_droppables();
+        },
+        buttons: {
+          Cancel: function() { $(this).dialog("close"); },
+          Save: function() {
+            var $dialog = $(this),
+                ticket = $dialog.data("ticket"),
+                newGroup = $dialog.data("group");
+
+            _this.process_move(ticket, newGroup, true);
+            $dialog.data("done", true).dialog("close");
+          }
+        }
+      });
+
+      this.$failDialog.dialog({
+        modal: true,
+        autoOpen: false,
+        title: "Failed to save ticket",
+        close: function() {
+          var ticket = $(this).data("ticket");
+          ticket.hide_wait();
+          ticket.animate_move(true);
+        },
+        buttons: {
+          Close: function() { $(this).dialog("close"); }
+        }
+      });
+    },
+
+    /**
+     * When we're viewing tickets by status, we can't show multiple workflows at
+     * once, so the structure of tickets/groups is different. This interface
+     * returns the same structure for all group-by options
+     * @memberof Taskboard
+     * @param {string} [workflow] - The workflow get data for
+     */
+    set_data_object: function(workflow) {
+      if(workflow) {
+        this.curTicketData = this.ticketData[workflow];
+        this.curGroupData = this.groupData[workflow];
+      }
+      else {
+        this.curTicketData = this.ticketData;
+        this.curGroupData = this.groupData;
+      }
+    },
+
+    /**
+     * Collect workflow names from the ticket data
+     * @memberof Taskboard
+     */
+    get_workflows: function() {
+      var workflows = [], workflow;
+
+      if(this.groupBy == "status") {
+        for(workflow in this.ticketData) {
+          if(this.ticketData.hasOwnProperty(workflow)) workflows.push(workflow);
+        }
+      }
+
+      return workflows;
+    },
+
+    /**
+     * Returns a nested-list of groups and their number of tickets
+     * @memberof Taskboard
+     * @returns {Array} [[<group>, <group-count>], ...]
+     */
+    order_groups_by_count: function() {
+      var i = 0,
+          byCount = [], groupName, group, pos, j;
+
+      for(groupName in this.groups) {
+        if(this.groups.hasOwnProperty(groupName)) {
+          group = this.groups[groupName];
+          pos = -1;
+
+          for(j = 0; j < i; j ++) {
+            if(group.ticketCount > byCount[j][1]) {
+              pos = j;
+              break;
+            }
+          }
+          if(pos > -1) {
+            byCount.splice(j,0,[group, group.ticketCount]);
+          }
+          else {
+            byCount.push([group, group.ticketCount]);
+          }
+          i ++;
+        }
+      }
+      return byCount;
+    },
+
+    /**
+     * Filter the groups to only show a selection of them.
+     * If no groups supplied, show the most popular 8
+     * @memberof Taskboard 
+     * @param {Array} [groups] - List of groups to show
+     */
+    filter_groups: function(groups) {
+      var x = 8, byCount, i, group, groupName, visible, filterLength;
+
+      if(!groups) {
+        if(this.groupCount > x) {
+          byCount = this.order_groups_by_count();
+
+          for (i = 0; i < this.groupCount; i ++) {
+            group = byCount[i][0];
+
+            if(i < x) {
+              group.filter_show();
+            }
+            else {
+              group.filter_hide();
+            }
+          }
+          this.filtered = true;
+        }
+
+        // If no group set, and no need to filter, show all
+        else {
+          for(groupName in this.groups) {
+            if(this.groups.hasOwnProperty(groupName)) {
+              this.groups[groupName].filter_show();
+            }
+          }
+          this.filtered = false;
+        }
+      }
+
+      // If user specified filter, group instances need to be collected
+      else {
+        for(groupName in this.groups) {
+          if(this.groups.hasOwnProperty(groupName)) {
+            visible = false;
+            filterLength = groups.length;
+
+            group = this.groups[groupName];
+
+            for(i = 0; i < filterLength; i ++) {
+              if(group.name == groups[i]) {
+                visible = true;
+                break;
+              }
+            }
+
+            if(visible) group.filter_show();
+            else group.filter_hide();
           }
         }
         this.filtered = true;
       }
+    },
 
-      // If no group set, and no need to filter, show all
-      else {
+    /**
+     * Add a group to the filter
+     * @memberof Taskboard
+     * @param {string} groupName
+     */
+    filter_add: function(groupName) {
+      this.groups[groupName].filter_show();
+    },
+
+    /**
+     * Remove a group from the filter
+     * @memberof Taskboard
+     * @param {string} groupName
+     */
+    filter_remove: function(groupName) {
+      this.groups[groupName].filter_hide();
+    },
+
+    /**
+     * Called when dragging starts.
+     * Restricts the user from moving the current ticket to certain groups
+     * @memberof Taskboard
+     * @param {Ticket} ticket
+     */
+    set_valid_moves: function(ticket) {
+      var groupName, actions;
+
+      if(this.groupBy == "status") {
+        actions = ticket.tData.actions;
+
         for(groupName in this.groups) {
-          if(this.groups.hasOwnProperty(groupName)) {
-            this.groups[groupName].filter_show();
+          if(!actions.hasOwnProperty(groupName)) {
+            this.groups[groupName].$elBody.droppable("disable").addClass("disabled");
           }
         }
-        this.filtered = false;
       }
-    }
+      ticket.group.$elBody.droppable("disable")
+                         .removeClass("disabled");
+    },
 
-    // If user specified filter, group instances need to be collected
-    else {
-      for(groupName in this.groups) {
-        if(this.groups.hasOwnProperty(groupName)) {
-          visible = false;
-          filterLength = groups.length;
-
-          group = this.groups[groupName];
-
-          for(i = 0; i < filterLength; i ++) {
-            if(group.name == groups[i]) {
-              visible = true;
-              break;
-            }
-          }
-
-          if(visible) group.filter_show();
-          else group.filter_hide();
-        }
-      }
-      this.filtered = true;
-    }
-  },
-
-  /**
-   * Add a group to the filter
-   * @memberof Taskboard
-   * @param {string} groupName
-   */
-  filter_add: function(groupName) {
-    this.groups[groupName].filter_show();
-  },
-
-  /**
-   * Remove a group from the filter
-   * @memberof Taskboard
-   * @param {string} groupName
-   */
-  filter_remove: function(groupName) {
-    this.groups[groupName].filter_hide();
-  },
-
-  /**
-   * Called when dragging starts.
-   * Restricts the user from moving the current ticket to certain groups
-   * @memberof Taskboard
-   * @param {Ticket} ticket
-   */
-  set_valid_moves: function(ticket) {
-    var groupName, actions;
-
-    if(this.groupBy == "status") {
-      actions = ticket.tData.actions;
-
-      for(groupName in this.groups) {
-        if(!actions.hasOwnProperty(groupName)) {
-          this.groups[groupName].$elBody.droppable("disable").addClass("disabled");
-        }
-      }
-    }
-    ticket.group.$elBody.droppable("disable")
-                       .removeClass("disabled");
-  },
-
-  /**
-   * Process a ticket move request
-   * @memberof Taskboard
-   * @param {Ticket} ticket
-   * @param {Group} newGroup
-   * @param {Boolean} fromDialog - If follow up request (after request for additional info)
-   */
-  process_move: function(ticket, newGroup, fromDialog) {
-    if(this.groupBy == "status") {
-      this._process_status_move(ticket, newGroup, fromDialog);
-    }
-    else {
-      this._process_generic_move(ticket, newGroup);
-    }
-  },
-
-  /**
-   * Process a ticket move when grouping by all other than status
-   * @private
-   * @memberof Taskboard
-   */
-  _process_generic_move: function(ticket, newGroup) {
-    var data = { 'value' : newGroup.name };
-    this._save_ticket_change(ticket, data, false);
-  },
-
-  /**
-   * Process a ticket move when grouping by status. If not from
-   * dialog we first check to see if any additional actions are required for
-   * this status. If there are, we open the dialog and prompt a response.
-   * @private
-   * @memberof Taskboard
-   */
-  _process_status_move: function(ticket, newGroup, fromDialog) {
-    var action, data, i, operation;
-
-    if(ticket.tData.actions.hasOwnProperty(newGroup.name)) {
-      action = ticket.tData.actions[newGroup.name];
-      data = { action: action[0] };
-
-      if(!fromDialog) {
-        for(i = 0; i < action[1].length; i ++) {
-          operation = action[1][i];
-
-          if(window.operationOptions.hasOwnProperty(operation)) {
-            this.set_options(ticket, newGroup, window.operationOptions[operation]);
-            return;
-          }
-        }
-        this._save_ticket_change(ticket, data, false);
+    /**
+     * Process a ticket move request
+     * @memberof Taskboard
+     * @param {Ticket} ticket
+     * @param {Group} newGroup
+     * @param {Boolean} fromDialog - If follow up request (after request for additional info)
+     */
+    process_move: function(ticket, newGroup, fromDialog) {
+      if(this.groupBy == "status") {
+        this._process_status_move(ticket, newGroup, fromDialog);
       }
       else {
-        this._save_ticket_change(ticket, data, true);
+        this._process_generic_move(ticket, newGroup);
       }
-    }
-  },
+    },
 
-  /**
-   * Process checks complete: make the Ajax request to save the ticket
-   * @private
-   * @memberof Taskboard
-   */
-  _save_ticket_change: function(ticket, newData, fromDialog) {
-    var _this = this, xhr,
-        url = window.tracBaseUrl + "taskboard",
-        data = {
-          '__FORM_TOKEN': window.formToken,
-          'group_name': this.groupBy,
-          'ticket': ticket.id,
-          'ts': ticket.tData.changetime
-        };
+    /**
+     * Process a ticket move when grouping by all other than status
+     * @private
+     * @memberof Taskboard
+     */
+    _process_generic_move: function(ticket, newGroup) {
+      var data = { 'value' : newGroup.name };
+      this._save_ticket_change(ticket, data, false);
+    },
 
-    $.extend(data, newData);
+    /**
+     * Process a ticket move when grouping by status. If not from
+     * dialog we first check to see if any additional actions are required for
+     * this status. If there are, we open the dialog and prompt a response.
+     * @private
+     * @memberof Taskboard
+     */
+    _process_status_move: function(ticket, newGroup, fromDialog) {
+      var action, data, i, operation;
 
-    ticket.freeze();
+      if(ticket.tData.actions.hasOwnProperty(newGroup.name)) {
+        action = ticket.tData.actions[newGroup.name];
+        data = { action: action[0] };
 
-    // Add our dialog inputs to our post list
-    if(fromDialog) {
-      $("input, select", this.$optDialog).each(function() {
-        data[$(this).attr("name")] = $(this).val();
-      });
-    }
+        if(!fromDialog) {
+          for(i = 0; i < action[1].length; i ++) {
+            operation = action[1][i];
 
-    xhr = $.post(url, data);
-
-    $.when(xhr).then(
-      $.proxy(this, "_save_ticket_response", ticket),
-      $.proxy(this, "_save_ticket_fail", ticket)
-    );
-  },
-
-  /**
-   * Retrieve the response from the server, and process for success / errors
-   * @private
-   * @memberof Taskboard 
-   */
-  _save_ticket_response: function(ticket, data, status, jqXHR) {
-    if(data.error) {
-      ticket.save_failed_feedback(data.error);
-    }
-    else {
-      this.process_update(data);
-    }
-  },
-
-  /**
-   * The server failed to respond appropriately, try to find out why
-   * @private
-   * @memberof Taskboard 
-   */
-  _save_ticket_fail: function(ticket, jqXHR) {
-    var errors = [jqXHR.status + ": " + jqXHR.statusText],
-        $feedback = $(jqXHR.responseText).contents().find("#content.error"),
-        $errorCode = $(".message pre", $feedback);
-
-    if($errorCode.length) {
-      errors.push("Error code: " + $errorCode.html());
-    }
-    ticket.save_failed_feedback(errors);
-  },
-
-  /**
-   * Process an update from the server. UI response depends on whether
-   * triggered by the user (i.e. after a save request). Deal with adding and
-   * removing tickets which have changed their scope (i.e. a milestone change)
-   * @memberof Taskboard
-   * @param {Object} data - JSON object returned by the server
-   *   @param {Object} [data.ticket] - Ticket information
-   *   @param {Object} [data.opts - Additional options
-   *   @param {Array}  [data.otherChanges] - ticket IDs which have changed but are not in scope
-   * @param {string} [textStatus] 
-   * @param {jqXHR} [jqXHR]
-   */
-  process_update: function(data, textStatus, jqXHR) {
-    var byUser = arguments.length == 1,
-        newData, wf, g, t, ticket, newTData, newGroup, oldGroup, op, i;
-
-    // For every updated ticket, delete any existing data
-    function delete_ticket_data(id) {
-      var orig_wf, orig_g;
-
-      for(orig_wf in this.ticketData) {
-        if(this.ticketData.hasOwnProperty(orig_wf)) {
-          for(orig_g in this.ticketData[orig_wf]) {
-            if(this.ticketData[orig_wf].hasOwnProperty(orig_g) &&
-               this.ticketData[orig_wf][orig_g][t]) {
-              delete this.ticketData[orig_wf][orig_g][t];
+            if(window.operationOptions.hasOwnProperty(operation)) {
+              this.set_options(ticket, newGroup, window.operationOptions[operation]);
               return;
             }
           }
+          this._save_ticket_change(ticket, data, false);
+        }
+        else {
+          this._save_ticket_change(ticket, data, true);
         }
       }
-    }
+    },
 
-    if(data.tickets) {
-      newData = data.tickets;
+    /**
+     * Process checks complete: make the Ajax request to save the ticket
+     * @private
+     * @memberof Taskboard
+     */
+    _save_ticket_change: function(ticket, newData, fromDialog) {
+      var _this = this, xhr,
+          url = window.tracBaseUrl + "taskboard",
+          data = {
+            '__FORM_TOKEN': window.formToken,
+            'group_name': this.groupBy,
+            'ticket': ticket.id,
+            'ts': ticket.tData.changetime
+          };
 
-      if(this.groupBy == "status") {
-        for(wf in newData) {
-          if(newData.hasOwnProperty(wf)) {
-            for(g in newData[wf]) {
-              if(newData[wf].hasOwnProperty(g)) {
-                for(t in newData[wf][g]) {
-                  if(newData[wf][g].hasOwnProperty(t)) {
+      $.extend(data, newData);
 
-                    // Remove any instantiated tickets which have moved
-                    // to another workflow
-                    if(this.tickets[t] && wf != this.workflow) {
-                      this.tickets[t].remove();
-                    }
-                    delete_ticket_data.apply(this, [t]);
-                  }
-                }
-              }
-            }
-          }
-        }
+      ticket.freeze();
 
-        // Add new ticket data
-        $.extend(true, this.ticketData, newData);
-
-        // Only tickets in the current workflow are instantiated
-        // so only perform the following actions on those
-        newData = newData[this.workflow];
-      }
-
-      for(g in newData) {
-        if(newData.hasOwnProperty(g)) {
-          for(t in newData[g]) {
-            if(newData[g].hasOwnProperty(t)) {
-              ticket = this.tickets[t];
-              newTData = newData[g][t];
-              newGroup = this.groups[g];
-
-              if(newGroup) {
-                if(ticket) {
-                  oldGroup = ticket.group;
-
-                  // If this is a change we don't already know about
-                  if(ticket.tData.changetime != newTData.changetime) {
-
-                    // If the groups are different, update group counts too
-                    if(newGroup != oldGroup) {
-                      if(newGroup) newGroup.ticket_added();
-                      oldGroup.ticket_removed();
-                      ticket.update(newTData, byUser, newGroup);
-                    }
-                    else {
-                      ticket.update(newTData, byUser);
-                    }
-                  }
-                }
-
-                // Ticket moved into query's scope, instantiate
-                else {
-                  this.tickets[t] = new Ticket(newGroup, t, newTData);
-                  this.ticketCount ++;
-                  newGroup.ticketCount ++;
-                }
-              }
-
-              // We've never seen this group before, reload taskboard entirely
-              else {
-                this.refresh();
-              }
-            }
-          }
-          this.update_ticket_counts();
-        }
-      }
-    }
-    if(data.ops) {
-      for(op in data.ops) {
-        if(data.ops.hasOwnProperty(op)) {
-          window.operationOptions[op] = data.ops[op];
-        }
-      }
-    }
-    // If a ticket is changed outside of our current query's scope, then we need
-    // To check if it's currently in our taskboard, and if it is, remove it.
-    if(data.otherChanges) {
-      for(i = 0; i < data.otherChanges.length; i ++) {
-        if(this.tickets[data.otherChanges[i]]) {
-          this.tickets[data.otherChanges[i]].remove();
-        }
-      }
-    }
-  },
-
-  /**
-   * Loop through every group and ask them to recalculate their number of tickets
-   * @memberof Taskboard
-   */
-  update_ticket_counts: function() {
-    for(var groupName in this.groups) {
-      if(this.groups.hasOwnProperty(groupName)) {
-        this.groups[groupName].update_ticket_count();
-      }
-    }
-  },
-
-  /**
-   * Open a dialog displaying the required operation required before a ticket
-   * can move into a new group (for status changes)
-   * @memberof Taskboard
-   * @param {Ticket} ticket
-   * @param {Group} newGroup
-   * @param {Array} operation - [<action>, <action label>, <input HTML>, <outcome label>]
-   */
-  set_options: function(ticket, newGroup, operation) {
-    this.$optDialog.html(operation[2])
-      .dialog({ title: operation[1] })
-      .dialog("open")
-      .data({
-        ticket: ticket,
-        group: newGroup
-      });
-
-    $("select", this.$optDialog).select2({
-      width: "off",
-      dropdownCssClass: "ui-dialog",
-      adaptContainerCssClass: function(cls) { return null; }
-    });
-  },
-
-  /**
-   * Re-enable all droppables (groups)
-   * @memberof Taskboard
-   */
-  reset_droppables: function() {
-    for(var group in this.groups) {
-      if(this.groups.hasOwnProperty(group)) {
-        this.groups[group].$elBody.droppable("enable").removeClass("over disabled");
-      }
-    }
-  },
-
-  /**
-   * Completely refresh the task board. Useful when minute differences are not picked up
-   * @memberof Taskboard
-   * @param {Boolean} [notify] - whether to make the update evident to the user
-   * @returns {Promise}
-   */
-  refresh: function(notify) {
-    var xhr = $.ajax();
-
-    if(notify) {
-      this.$loadMsg = $("<div class='taskboard-refresh'>" +
-                        "<i class='icon-refresh icon-spin color-info'></i>" +
-                        "</div>").appendTo(this.$container);
-    }
-
-    $.when(xhr).then($.proxy(this, "_refresh_success"),
-                     $.proxy(this, "_refresh_fail"));
-
-    return xhr.promise();
-  },
-
-  /**
-   * Once the Deferred is resolved, tear the task board down and rebuild
-   * @private
-   * @memberof Taskboard
-   */
-  _refresh_success: function(data, textStatus, jqXHR) {
-    var _this = this;
-
-    // Throw all of our data into the window object
-    $.extend(window, data);
-
-    this.teardown();
-    this.construct(data.groups, data.tickets, data.currentWorkflow);
-
-    if(this.$loadMsg) {
-      $.wait(1000).then(function() {
-        _this.$loadMsg.fadeOut(function() {
-          _this.$loadMsg.remove();
-          delete _this.$loadMsg;
+      // Add our dialog inputs to our post list
+      if(fromDialog) {
+        $("input, select", this.$optDialog).each(function() {
+          data[$(this).attr("name")] = $(this).val();
         });
-      });
-    }
-  },
-
-  /**
-   * If the Deferred is rejected, reload the page altogether
-   * @private
-   * @memberof Taskboard
-   */
-  _refresh_fail: function() {
-    window.location.reload();
-  },
-
-  /**
-   * Construct a new taskboard given a workflow
-   * @memberof Taskboard
-   * @param {string} workflow - The name of the workflow to draw
-   */
-  change_workflow: function(workflow) {
-    if(this.ticketData[workflow]) {
-      this.teardown();
-      this.construct(this.groupData, this.ticketData, workflow);
-    }
-  },
-
-  /**
-   * Teardown the taskboard, removing all group and ticket models and DOM elements
-   * @memberof Taskboard
-   */
-  teardown: function() {
-    var ticket, groupName;
-
-    for(ticket in this.tickets) {
-      if(this.tickets.hasOwnProperty(ticket)) {
-        this.tickets[ticket].remove();
       }
-    }
 
-    for(groupName in this.groups) {
-      if(this.groups.hasOwnProperty(groupName)) {
-        this.groups[groupName].remove();
-      }
-    }
+      xhr = $.post(url, data);
 
-    delete this.tickets;
-    delete this.ticketData;
-    delete this.groups;
-    delete this.groupsOrdered;
-    delete this.groupData;
-    clearTimeout(this.updateTimeout);
-  }
-});
+      $.when(xhr).then(
+        $.proxy(this, "_save_ticket_response", ticket),
+        $.proxy(this, "_save_ticket_fail", ticket)
+      );
+    },
 
-
-// @namespace
-// GROUP PRIVATE CLASS DEFINITION (INSTANTIATED BY TASKBOARD)
-// ==========================================================
-var Group = Class.extend({
-
-  /**
-   * Initialise a new group
-   * @constructor
-   * @alias Group
-   * @param {Taskboard} taskboard - Linked to this task board
-   * @param {string} name - The name of the new group
-   * @param {Number} order - the order of the group within the task board
-   * @param {Object} ticketData - the data used to initialise this group's tickets
-   */
-  init: function(taskboard, name, order, ticketData) {
-    this.taskboard = taskboard;
-    this.name = name;
-    this.order = order;
-    this.ticketData = ticketData;
-
-    this.taskboard.groupCount ++;
-    this.ticketCount = 0;
-
-    this.maxCount = 0;
-
-    if(window.statusLimits) {
-      this.maxCount = window.statusLimits[this.name] || 0;
-    }
-
-    this.draw_elems();
-    this.set_events();
-  },
-
-  /**
-   * Draw both the header and the body of this group
-   * @memberof Group
-   */
-  draw_elems: function() {
-    this._draw_head();
-    this._draw_body();
-  },
-
-  /**
-   * Draw the group header, including an avatar if available
-   * @private
-   * @memberof Group
-   */
-  _draw_head: function() {
-    var avatar = (((window.userData||{})[this.name]||{})).avatar;
-
-    this.$elHead = $("<th class='cf'></th>");
-
-    if(avatar) {
-      this.$elHead.append("<img class='hidden-phone group-avatar' src='" + avatar + "' a />");
-    }
-
-    this.$elHead.append("<div class='group-count hidden-phone'></div>");
-    this.$elHead.append("<div class='group-name'>" + this.get_visual_name() + "</div>");
-    $("thead tr", this.taskboard.$el).append(this.$elHead);
-  },
-
-  /**
-   * Draw the body of the group. Loop over ticketData, instantiate new Ticket for each.
-   * @private
-   * @memberof Group
-   */
-  _draw_body: function() {
-    var ticketId;
-
-    this.$elBody = $("<td class='tickets'></td>");
-
-    for(ticketId in this.ticketData) {
-      if(this.ticketData.hasOwnProperty(ticketId)) {
-        this.taskboard.tickets[ticketId] = new Ticket(this, ticketId, this.ticketData[ticketId]);
-      }
-    }
-
-    this.$elBody.data("_self", this);
-    $("tbody tr", this.taskboard.$el).append(this.$elBody);
-  },
-
-  /**
-   * Set the droppable events for this group
-   * @memberof Group
-   */
-  set_events: function() {
-    var _this = this;
-
-    this.$elBody.droppable({
-      accept:'div.ticket',
-      over: function(e, ui) {
-        $(this).addClass("over");
-      },
-      out: function(e, ui) {
-        $(this).removeClass("over");
-      },
-      drop: function(e, ui) {
-        var ticket = ui.draggable.data("_self");
-        _this.drop_in_place(ticket);
-        _this.taskboard.process_move(ticket, _this);
-      }
-    });
-  },
-
-  /**
-   * Show this group - invoked by Taskboard
-   * @memberof Group
-   */
-  filter_show: function() {
-    this.visible = true;
-    this.$elHead.add(this.$elBody).removeClass("hidden");
-  },
-
-  /**
-   * Hide this group - invoked by Taskboard
-   * @memberof Group
-   */
-  filter_hide: function() {
-    this.visible = false;
-    this.$elHead.add(this.$elBody).addClass("hidden");
-  },
-
-  /**
-   * Get the visual name for a group. If grouped by a user field, we try to
-   * find their name, else use their name property. If name property an empty
-   * string, use the relevant language depending on the group-by field
-   * @memberof Group
-   * @returns {string} Visual name of field
-   */
-  get_visual_name: function() {
-    if(this.name) {
-      if(window.userData) {
-        return window.userData[this.name].name;
+    /**
+     * Retrieve the response from the server, and process for success / errors
+     * @private
+     * @memberof Taskboard 
+     */
+    _save_ticket_response: function(ticket, data, status, jqXHR) {
+      if(data.error) {
+        ticket.save_failed_feedback(data.error);
       }
       else {
-        return this.name;
+        this.process_update(data);
       }
-    }
-    else {
-      switch(this.taskboard.groupBy) {
-        case "owner":
-        case "reporter":
-        case "qualityassurancecontact":
-          return "Unassigned";
-        default:
-          return "Unset";
+    },
+
+    /**
+     * The server failed to respond appropriately, try to find out why
+     * @private
+     * @memberof Taskboard 
+     */
+    _save_ticket_fail: function(ticket, jqXHR) {
+      var errors = [jqXHR.status + ": " + jqXHR.statusText],
+          $feedback = $(jqXHR.responseText).contents().find("#content.error"),
+          $errorCode = $(".message pre", $feedback);
+
+      if($errorCode.length) {
+        errors.push("Error code: " + $errorCode.html());
       }
+      ticket.save_failed_feedback(errors);
+    },
+
+    /**
+     * Process an update from the server. UI response depends on whether
+     * triggered by the user (i.e. after a save request). Deal with adding and
+     * removing tickets which have changed their scope (i.e. a milestone change)
+     * @memberof Taskboard
+     * @param {Object} data - JSON object returned by the server
+     *   @param {Object} [data.ticket] - Ticket information
+     *   @param {Object} [data.opts - Additional options
+     *   @param {Array}  [data.otherChanges] - ticket IDs which have changed but are not in scope
+     * @param {string} [textStatus] 
+     * @param {jqXHR} [jqXHR]
+     */
+    process_update: function(data, textStatus, jqXHR) {
+      var byUser = arguments.length == 1,
+          newData, wf, g, t, ticket, newTData, newGroup, oldGroup, op, i;
+
+      // For every updated ticket, delete any existing data
+      function delete_ticket_data(id) {
+        var orig_wf, orig_g;
+
+        for(orig_wf in this.ticketData) {
+          if(this.ticketData.hasOwnProperty(orig_wf)) {
+            for(orig_g in this.ticketData[orig_wf]) {
+              if(this.ticketData[orig_wf].hasOwnProperty(orig_g) &&
+                 this.ticketData[orig_wf][orig_g][t]) {
+                delete this.ticketData[orig_wf][orig_g][t];
+                return;
+              }
+            }
+          }
+        }
+      }
+
+      if(data.tickets) {
+        newData = data.tickets;
+
+        if(this.groupBy == "status") {
+          for(wf in newData) {
+            if(newData.hasOwnProperty(wf)) {
+              for(g in newData[wf]) {
+                if(newData[wf].hasOwnProperty(g)) {
+                  for(t in newData[wf][g]) {
+                    if(newData[wf][g].hasOwnProperty(t)) {
+
+                      // Remove any instantiated tickets which have moved
+                      // to another workflow
+                      if(this.tickets[t] && wf != this.workflow) {
+                        this.tickets[t].remove();
+                      }
+                      delete_ticket_data.apply(this, [t]);
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          // Add new ticket data
+          $.extend(true, this.ticketData, newData);
+
+          // Only tickets in the current workflow are instantiated
+          // so only perform the following actions on those
+          newData = newData[this.workflow];
+        }
+
+        for(g in newData) {
+          if(newData.hasOwnProperty(g)) {
+            for(t in newData[g]) {
+              if(newData[g].hasOwnProperty(t)) {
+                ticket = this.tickets[t];
+                newTData = newData[g][t];
+                newGroup = this.groups[g];
+
+                if(newGroup) {
+                  if(ticket) {
+                    oldGroup = ticket.group;
+
+                    // If this is a change we don't already know about
+                    if(ticket.tData.changetime != newTData.changetime) {
+
+                      // If the groups are different, update group counts too
+                      if(newGroup != oldGroup) {
+                        if(newGroup) newGroup.ticket_added();
+                        oldGroup.ticket_removed();
+                        ticket.update(newTData, byUser, newGroup);
+                      }
+                      else {
+                        ticket.update(newTData, byUser);
+                      }
+                    }
+                  }
+
+                  // Ticket moved into query's scope, instantiate
+                  else {
+                    this.tickets[t] = new Ticket(newGroup, t, newTData);
+                    this.ticketCount ++;
+                    newGroup.ticketCount ++;
+                  }
+                }
+
+                // We've never seen this group before, reload taskboard entirely
+                else {
+                  this.refresh();
+                }
+              }
+            }
+            this.update_ticket_counts();
+          }
+        }
+      }
+      if(data.ops) {
+        for(op in data.ops) {
+          if(data.ops.hasOwnProperty(op)) {
+            window.operationOptions[op] = data.ops[op];
+          }
+        }
+      }
+      // If a ticket is changed outside of our current query's scope, then we need
+      // To check if it's currently in our taskboard, and if it is, remove it.
+      if(data.otherChanges) {
+        for(i = 0; i < data.otherChanges.length; i ++) {
+          if(this.tickets[data.otherChanges[i]]) {
+            this.tickets[data.otherChanges[i]].remove();
+          }
+        }
+      }
+    },
+
+    /**
+     * Loop through every group and ask them to recalculate their number of tickets
+     * @memberof Taskboard
+     */
+    update_ticket_counts: function() {
+      for(var groupName in this.groups) {
+        if(this.groups.hasOwnProperty(groupName)) {
+          this.groups[groupName].update_ticket_count();
+        }
+      }
+    },
+
+    /**
+     * Open a dialog displaying the required operation required before a ticket
+     * can move into a new group (for status changes)
+     * @memberof Taskboard
+     * @param {Ticket} ticket
+     * @param {Group} newGroup
+     * @param {Array} operation - [<action>, <action label>, <input HTML>, <outcome label>]
+     */
+    set_options: function(ticket, newGroup, operation) {
+      this.$optDialog.html(operation[2])
+        .dialog({ title: operation[1] })
+        .dialog("open")
+        .data({
+          ticket: ticket,
+          group: newGroup
+        });
+
+      $("select", this.$optDialog).select2({
+        width: "off",
+        dropdownCssClass: "ui-dialog",
+        adaptContainerCssClass: function(cls) { return null; }
+      });
+    },
+
+    /**
+     * Re-enable all droppables (groups)
+     * @memberof Taskboard
+     */
+    reset_droppables: function() {
+      for(var group in this.groups) {
+        if(this.groups.hasOwnProperty(group)) {
+          this.groups[group].$elBody.droppable("enable").removeClass("over disabled");
+        }
+      }
+    },
+
+    /**
+     * Completely refresh the task board. Useful when minute differences are not picked up
+     * @memberof Taskboard
+     * @param {Boolean} [notify] - whether to make the update evident to the user
+     * @returns {Promise}
+     */
+    refresh: function(notify) {
+      var xhr = $.ajax();
+
+      if(notify) {
+        this.$loadMsg = $("<div class='taskboard-refresh'>" +
+                          "<i class='icon-refresh icon-spin color-info'></i>" +
+                          "</div>").appendTo(this.$container);
+      }
+
+      $.when(xhr).then($.proxy(this, "_refresh_success"),
+                       $.proxy(this, "_refresh_fail"));
+
+      return xhr.promise();
+    },
+
+    /**
+     * Once the Deferred is resolved, tear the task board down and rebuild
+     * @private
+     * @memberof Taskboard
+     */
+    _refresh_success: function(data, textStatus, jqXHR) {
+      var _this = this;
+
+      // Throw all of our data into the window object
+      $.extend(window, data);
+
+      this.teardown();
+      this.construct(data.groups, data.tickets, data.currentWorkflow);
+
+      if(this.$loadMsg) {
+        $.wait(1000).then(function() {
+          _this.$loadMsg.fadeOut(function() {
+            _this.$loadMsg.remove();
+            delete _this.$loadMsg;
+          });
+        });
+      }
+    },
+
+    /**
+     * If the Deferred is rejected, reload the page altogether
+     * @private
+     * @memberof Taskboard
+     */
+    _refresh_fail: function() {
+      window.location.reload();
+    },
+
+    /**
+     * Construct a new taskboard given a workflow
+     * @memberof Taskboard
+     * @param {string} workflow - The name of the workflow to draw
+     */
+    change_workflow: function(workflow) {
+      if(this.ticketData[workflow]) {
+        this.teardown();
+        this.construct(this.groupData, this.ticketData, workflow);
+      }
+    },
+
+    /**
+     * Teardown the taskboard, removing all group and ticket models and DOM elements
+     * @memberof Taskboard
+     */
+    teardown: function() {
+      var ticket, groupName;
+
+      for(ticket in this.tickets) {
+        if(this.tickets.hasOwnProperty(ticket)) {
+          this.tickets[ticket].remove();
+        }
+      }
+
+      for(groupName in this.groups) {
+        if(this.groups.hasOwnProperty(groupName)) {
+          this.groups[groupName].remove();
+        }
+      }
+
+      delete this.tickets;
+      delete this.ticketData;
+      delete this.groups;
+      delete this.groupsOrdered;
+      delete this.groupData;
+      clearTimeout(this.updateTimeout);
     }
-  },
+  });
 
-  /**
-   * Position a ticket in order within a group, using the index
-   * returned by _calculate_new_position()
-   * @memberof Group
-   * @param {Ticket} ticket
-   */
-  drop_in_place: function(ticket) {
-    var $ticketsInContainer = $(".ticket", this.$elBody), pos;
 
-    // No tickets in container
-    if(!$ticketsInContainer.length) {
-      ticket.$el.appendTo(this.$elBody);
-    }
-    else {
-      pos = this._calculate_new_position(ticket);
+  // @namespace
+  // GROUP PRIVATE CLASS DEFINITION (INSTANTIATED BY TASKBOARD)
+  // ==========================================================
+  var Group = Class.extend({
 
-      // If no position to insert, append to container
-      if(pos == -1) {
+    /**
+     * Initialise a new group
+     * @constructor
+     * @alias Group
+     * @param {Taskboard} taskboard - Linked to this task board
+     * @param {string} name - The name of the new group
+     * @param {Number} order - the order of the group within the task board
+     * @param {Object} ticketData - the data used to initialise this group's tickets
+     */
+    init: function(taskboard, name, order, ticketData) {
+      this.taskboard = taskboard;
+      this.name = name;
+      this.order = order;
+      this.ticketData = ticketData;
+
+      this.taskboard.groupCount ++;
+      this.ticketCount = 0;
+
+      this.maxCount = 0;
+
+      if(window.statusLimits) {
+        this.maxCount = window.statusLimits[this.name] || 0;
+      }
+
+      this.draw_elems();
+      this.set_events();
+    },
+
+    /**
+     * Draw both the header and the body of this group
+     * @memberof Group
+     */
+    draw_elems: function() {
+      this._draw_head();
+      this._draw_body();
+    },
+
+    /**
+     * Draw the group header, including an avatar if available
+     * @private
+     * @memberof Group
+     */
+    _draw_head: function() {
+      var avatar = (((window.userData||{})[this.name]||{})).avatar;
+
+      this.$elHead = $("<th class='cf'></th>");
+
+      if(avatar) {
+        this.$elHead.append("<img class='hidden-phone group-avatar' src='" + avatar + "' a />");
+      }
+
+      this.$elHead.append("<div class='group-count hidden-phone'></div>");
+      this.$elHead.append("<div class='group-name'>" + this.get_visual_name() + "</div>");
+      $("thead tr", this.taskboard.$el).append(this.$elHead);
+    },
+
+    /**
+     * Draw the body of the group. Loop over ticketData, instantiate new Ticket for each.
+     * @private
+     * @memberof Group
+     */
+    _draw_body: function() {
+      var ticketId;
+
+      this.$elBody = $("<td class='tickets'></td>");
+
+      for(ticketId in this.ticketData) {
+        if(this.ticketData.hasOwnProperty(ticketId)) {
+          this.taskboard.tickets[ticketId] = new Ticket(this, ticketId, this.ticketData[ticketId]);
+        }
+      }
+
+      this.$elBody.data("_self", this);
+      $("tbody tr", this.taskboard.$el).append(this.$elBody);
+    },
+
+    /**
+     * Set the droppable events for this group
+     * @memberof Group
+     */
+    set_events: function() {
+      var _this = this;
+
+      this.$elBody.droppable({
+        accept:'div.ticket',
+        over: function(e, ui) {
+          $(this).addClass("over");
+        },
+        out: function(e, ui) {
+          $(this).removeClass("over");
+        },
+        drop: function(e, ui) {
+          var ticket = ui.draggable.data("_self");
+          _this.drop_in_place(ticket);
+          _this.taskboard.process_move(ticket, _this);
+        }
+      });
+    },
+
+    /**
+     * Show this group - invoked by Taskboard
+     * @memberof Group
+     */
+    filter_show: function() {
+      this.visible = true;
+      this.$elHead.add(this.$elBody).removeClass("hidden");
+    },
+
+    /**
+     * Hide this group - invoked by Taskboard
+     * @memberof Group
+     */
+    filter_hide: function() {
+      this.visible = false;
+      this.$elHead.add(this.$elBody).addClass("hidden");
+    },
+
+    /**
+     * Get the visual name for a group. If grouped by a user field, we try to
+     * find their name, else use their name property. If name property an empty
+     * string, use the relevant language depending on the group-by field
+     * @memberof Group
+     * @returns {string} Visual name of field
+     */
+    get_visual_name: function() {
+      if(this.name) {
+        if(window.userData) {
+          return window.userData[this.name].name;
+        }
+        else {
+          return this.name;
+        }
+      }
+      else {
+        switch(this.taskboard.groupBy) {
+          case "owner":
+          case "reporter":
+          case "qualityassurancecontact":
+            return "Unassigned";
+          default:
+            return "Unset";
+        }
+      }
+    },
+
+    /**
+     * Position a ticket in order within a group, using the index
+     * returned by _calculate_new_position()
+     * @memberof Group
+     * @param {Ticket} ticket
+     */
+    drop_in_place: function(ticket) {
+      var $ticketsInContainer = $(".ticket", this.$elBody), pos;
+
+      // No tickets in container
+      if(!$ticketsInContainer.length) {
         ticket.$el.appendTo(this.$elBody);
       }
-
-      // Else, insert before the correct ticket
       else {
-        $ticketsInContainer.eq(pos).before(ticket.$el);
+        pos = this._calculate_new_position(ticket);
+
+        // If no position to insert, append to container
+        if(pos == -1) {
+          ticket.$el.appendTo(this.$elBody);
+        }
+
+        // Else, insert before the correct ticket
+        else {
+          $ticketsInContainer.eq(pos).before(ticket.$el);
+        }
       }
-    }
-  },
+    },
 
-  /**
-   * Calculate where a ticket should be placed within a group
-   * @memberof Group
-   * @private
-   * @param {Ticket} ticket
-   * @returns {Number} index to position the ticket in, or -1 to append
-   */
-  _calculate_new_position: function(ticket) {
-    var pos = -1;
+    /**
+     * Calculate where a ticket should be placed within a group
+     * @memberof Group
+     * @private
+     * @param {Ticket} ticket
+     * @returns {Number} index to position the ticket in, or -1 to append
+     */
+    _calculate_new_position: function(ticket) {
+      var pos = -1;
 
-    $(".ticket", this.$elBody).not(ticket.$el).each(function(i) {
-      if(ticket.greater_than($(this).data("_self"))) {
-        pos = i;
-        return false;
-      }
-    });
-
-    return pos;
-  },
-
-  /**
-   * Increment the group's ticket count
-   * @memberof Group
-   */
-  ticket_added: function() {
-    this.ticketCount ++;
-    this.update_ticket_count();
-  },
-
-  /**
-   * Decrement the group's ticket count
-   * @memberof Group
-   */
-  ticket_removed: function() {
-    this.ticketCount --;
-    this.update_ticket_count();
-  },
-
-  /**
-   * Update the UI representation of the ticket count. This is colourized to
-   * reflect how close this group's count is to the average
-   * @memberof Group
-   */
-  update_ticket_count: function() {
-    var average = this.taskboard.ticketCount / this.taskboard.groupCount,
-        outlier_amount = Math.abs(average - this.ticketCount) / average,
-        outlier_case = "", count;
-
-    if(outlier_amount >= 1) outlier_case = "warning";
-    else if(outlier_amount >= 2/3) outlier_case = "error";
-    else if(outlier_amount >= 1/3) outlier_case = "primary";
-    else outlier_case = "success";
-
-    if(this.maxCount) {
-      count = this.ticketCount + "/" + this.maxCount;
-    }
-    else {
-      count = this.ticketCount;
-    }
-
-    $(".group-count", this.$elHead).addClass("case-" + outlier_case).text(count);
-  },
-
-  /**
-   * @memberof Group
-   * Remove this group's DOM and references
-   */
-  remove: function() {
-    this.$elHead.add(this.$elBody).remove();
-    delete this.taskboard.groups[this.name];
-    delete this.taskboard.groupsOrdered[this.order];
-  }
-});
-
-
-// @namespace
-// TICKET PRIVATE CLASS DEFINITION (INSTANTIATED BY GROUP)
-// =======================================================
-var Ticket = Class.extend({
-
-  /**
-   * Initialise a new ticket
-   * @constructor
-   * @alias Ticket
-   * @param {Group} group - The group to which this new ticket belong
-   * @param {Number} id - The ticket's ID
-   * @param {Object} tData - The ticket's data
-   */
-  init: function(group, id, tData) {
-    this.group = group;
-    this.id = parseInt(id, 10);
-    this.tData = tData;
-
-    this.draw();
-    this.set_events();
-
-    this.group.ticketCount ++;
-    this.group.taskboard.ticketCount ++;
-  },
-
-  /**
-   * Draw the ticket's elements, and add to the right position within the group
-   * @memberof Ticket
-   */
-  draw: function() {
-    var statsLength = this.statFields.length, i;
-
-    this.$el = $("<div class='ticket' id='ticket-" + this.id + "'></div>");
-    this.$elWait =  $("<div class='wait'><div class='indicators'></div></div>").appendTo(this.$el);
-    this.$el.data("_self", this);
-    this.$el.append("<a href='" + window.tracBaseUrl + "ticket/" + this.id + "' " +
-                    "class='title unselectable tooltipped-above'>#" + this.id + ": <span></span></a>");
-
-    for(i = 0; i < statsLength; i ++) {
-      this.$el.append("<div class='stat stat-" + this.statFields[i] + " unselectable'>" +
-                       "<i class='icon-" + this.statFields[i] + "'></i> <span></span>" +
-                     "</div>");
-    }
-
-    this.update_el();
-    this.group.drop_in_place(this);
-  },
-
-  statFields: ["type", "owner", "priority", "milestone"],
-
-  /**
-   * Update the ticket's UI values
-   * @memberof Ticket
-   */
-  update_el: function() {
-    var statsLength = this.statFields.length, i, stat;
-
-    this.$el.attr("data-priority", this.tData.priority_value);
-    $(".title span", this.$el).text(this.tData.summary);
-    $(".title", this.$el).attr("data-original-title", this.tData.summary);
-
-    for(i = 0; i < statsLength; i ++) {
-      stat = this.statFields[i];
-      $(".stat-" + stat + " span", this.$el).text(this.tData[stat]);
-    }
-  },
-
-  /**
-   * Set the draggable events for the ticket
-   * @memberof Ticket
-   */
-  set_events: function() {
-    var _this = this;
-
-    $(".wait", this.$el).on("click", ".icon-exclamation-sign", function() {
-      var $list = $("ul", _this.group.taskboard.$failDialog).html("");
-
-      $.each(_this.errorInfo, function(i, msg) {
-        $list.append("<li>" + msg + "</li>");
+      $(".ticket", this.$elBody).not(ticket.$el).each(function(i) {
+        if(ticket.greater_than($(this).data("_self"))) {
+          pos = i;
+          return false;
+        }
       });
 
-      _this.group.taskboard.$failDialog.data("ticket", _this).dialog("open");
-    });
+      return pos;
+    },
 
-    this.$el.draggable({
-      opacity:0.7,
-      helper: function(e) {
-        var original = $(e.target).hasClass("ui-draggable") ? $(e.target) : $(e.target).closest(".ui-draggable");
-        return original.clone().css({
-          width: original.width()
-        });
-      },
-      revert: "invalid",
-      start: function (e, ui) {
-        _this.group.taskboard.set_valid_moves($(this).data("_self"));
-      },
-      stop: function (e, ui) {
-        _this.group.taskboard.reset_droppables();
-      }
-    });
-  },
+    /**
+     * Increment the group's ticket count
+     * @memberof Group
+     */
+    ticket_added: function() {
+      this.ticketCount ++;
+      this.update_ticket_count();
+    },
 
-  /**
-   * Given a new group and / or data, update this ticket. If the update was not
-   * triggered by user interaction and the ticket has changed group, then animate
-   * the move.
-   * @memberof Ticket
-   * @param {Object} data - the new data for the ticket
-   * @param {Boolean} byUser - whether update was triggered by user interaction
-   * @param {Group} [newGroup] - the new group to which this ticket belongs
-   */
-  update: function(data, byUser, newGroup) {
-    this.tData = data;
-    this.update_el();
+    /**
+     * Decrement the group's ticket count
+     * @memberof Group
+     */
+    ticket_removed: function() {
+      this.ticketCount --;
+      this.update_ticket_count();
+    },
 
-    if(newGroup) {
-      this.group = newGroup;
+    /**
+     * Update the UI representation of the ticket count. This is colourized to
+     * reflect how close this group's count is to the average
+     * @memberof Group
+     */
+    update_ticket_count: function() {
+      var average = this.taskboard.ticketCount / this.taskboard.groupCount,
+          outlier_amount = Math.abs(average - this.ticketCount) / average,
+          outlier_case = "", count;
 
-      if(byUser) {
-        this.save_ok_feedback();
+      if(outlier_amount >= 1) outlier_case = "warning";
+      else if(outlier_amount >= 2/3) outlier_case = "error";
+      else if(outlier_amount >= 1/3) outlier_case = "primary";
+      else outlier_case = "success";
+
+      if(this.maxCount) {
+        count = this.ticketCount + "/" + this.maxCount;
       }
       else {
-        this.animate_move(true);
+        count = this.ticketCount;
       }
+
+      $(".group-count", this.$elHead).addClass("case-" + outlier_case).text(count);
+    },
+
+    /**
+     * @memberof Group
+     * Remove this group's DOM and references
+     */
+    remove: function() {
+      this.$elHead.add(this.$elBody).remove();
+      delete this.taskboard.groups[this.name];
+      delete this.taskboard.groupsOrdered[this.order];
     }
-    else {
-      this.animate_move(false);
-    }
-  },
+  });
 
-  /**
-   * Check whether this ticket has no explicit position
-   * @private
-   * @memberof Ticket
-   * @returns {Boolean}
-   */
-  _position_unset: function() {
-    return this.tData.position === null;
-  },
 
-  /**
-   * Given another ticket, calculate whether this ticket should be positioned
-   * above or below the other
-   * @memberof Ticket
-   * @param {Ticket} - other
-   * @returns {Boolean} True = above, False = below
-   */
-  greater_than: function(other) {
-    var i, thisFactor, otherFactor,
-      factors = [
-        [this._position_unset(), other._position_unset()],
-        [this.tData.position, other.tData.position],
-        [this.tData.priority_value, other.tData.priority_value],
-        [this.id, other.id]
-      ];
+  // @namespace
+  // TICKET PRIVATE CLASS DEFINITION (INSTANTIATED BY GROUP)
+  // =======================================================
+  var Ticket = Class.extend({
 
-    for(i = 0; i < factors.length; i ++) {
-      thisFactor = factors[i][0];
-      otherFactor = factors[i][1];
+    /**
+     * Initialise a new ticket
+     * @constructor
+     * @alias Ticket
+     * @param {Group} group - The group to which this new ticket belong
+     * @param {Number} id - The ticket's ID
+     * @param {Object} tData - The ticket's data
+     */
+    init: function(group, id, tData) {
+      this.group = group;
+      this.id = parseInt(id, 10);
+      this.tData = tData;
 
-      if(thisFactor != otherFactor) {
-        return thisFactor < otherFactor;
+      this.draw();
+      this.set_events();
+
+      this.group.ticketCount ++;
+      this.group.taskboard.ticketCount ++;
+    },
+
+    /**
+     * Draw the ticket's elements, and add to the right position within the group
+     * @memberof Ticket
+     */
+    draw: function() {
+      var statsLength = this.statFields.length, i;
+
+      this.$el = $("<div class='ticket' id='ticket-" + this.id + "'></div>");
+      this.$elWait =  $("<div class='wait'><div class='indicators'></div></div>").appendTo(this.$el);
+      this.$el.data("_self", this);
+      this.$el.append("<a href='" + window.tracBaseUrl + "ticket/" + this.id + "' " +
+                      "class='title unselectable tooltipped-above'>#" + this.id + ": <span></span></a>");
+
+      for(i = 0; i < statsLength; i ++) {
+        this.$el.append("<div class='stat stat-" + this.statFields[i] + " unselectable'>" +
+                         "<i class='icon-" + this.statFields[i] + "'></i> <span></span>" +
+                       "</div>");
       }
-    }
-  },
 
-  /**
-   * Animate a ticket update, either into a new group, or into a new position
-   * within a group. If the ticket group and position is unchanged then just
-   * show a refresh icon.
-   * @memberof Ticket
-   * @param {Boolean} intoGroup - Whether the ticket has changed groups
-   */
-  animate_move: function(intoGroup) {
-    var _this = this,
-        needCopy, currentPos, newPos, parentOffset, newOffset, oldOffset;
-
-    // We might also need to move the position within the group
-    if(!intoGroup) {
-      currentPos = $(".ticket", this.group.$elBody).index(this.$el);
-      newPos = this.group._calculate_new_position(this);
-
-      needCopy = currentPos != newPos;
-    }
-
-    if(intoGroup || needCopy) {
-
-      // Calculate the current offset position, move the element, and recalculate
-      parentOffset = this.$el.offsetParent().offset();
-      oldOffset = this.$el.offset();
-
-      // We store the original and move the copy into .$el as 'waiting' user 
-      // feedback is set against .$el
-      this.$elOriginal = this.$el;
-
+      this.update_el();
       this.group.drop_in_place(this);
-      newOffset = this.$el.offset();
+    },
 
-      // Rewrite .$el with a clone
-      this.$el = this.$el.clone().addClass("tmp").appendTo('#content');
+    statFields: ["type", "owner", "priority", "milestone"],
 
-      // Slide the original down, but make it appear as a placeholder
-      this.$elOriginal.draggable("disable")
-        .addClass("placeholder")
-        .slideDown();
+    /**
+     * Update the ticket's UI values
+     * @memberof Ticket
+     */
+    update_el: function() {
+      var statsLength = this.statFields.length, i, stat;
 
-      // Set feedback against clone
-      this.external_update_feedback(false);
+      this.$el.attr("data-priority", this.tData.priority_value);
+      $(".title span", this.$el).text(this.tData.summary);
+      $(".title", this.$el).attr("data-original-title", this.tData.summary);
 
-      // Animate clone from original old's position to new
-      this.$el.css('position', 'absolute')
-        .css('left', oldOffset.left - parentOffset.left)
-        .css('top', oldOffset.top - parentOffset.top)
-        .css('zIndex', 90)
-        .css('width', this.$elOriginal.width())
-        .animate({
-            top: newOffset.top - parentOffset.top,
-            left: newOffset.left - parentOffset.left
-          },
-          {
-            duration: 800,
-            complete: function() {
-              $.wait(1000).then($.proxy(_this, "_animate_move_complete"));
-            }
-          });
-    }
-    else {
-      this.external_update_feedback(true);
-    }
-  },
+      for(i = 0; i < statsLength; i ++) {
+        stat = this.statFields[i];
+        $(".stat-" + stat + " span", this.$el).text(this.tData[stat]);
+      }
+    },
 
-  /**
-   * Once the move animation is complete, remove the clone and reinstate original
-   * @private
-   * @memberof Ticket
-   */
-  _animate_move_complete: function() {
-    this.$el.remove();
-    this.$el = this.$elOriginal.draggable("enable").removeClass("placeholder");
+    /**
+     * Set the draggable events for the ticket
+     * @memberof Ticket
+     */
+    set_events: function() {
+      var _this = this;
 
-    // Nasty hack to force repainting on Win Chrome
-    // without it, the UI is left with "streak marks" from the move
-    // TODO remove when no longer needed
-    if(isChrome && isWindows) {
-      this.group.$elBody.fadeOut(1).fadeIn(1);
-    }
-  },
+      $(".wait", this.$el).on("click", ".icon-exclamation-sign", function() {
+        var $list = $("ul", _this.group.taskboard.$failDialog).html("");
 
-  /**
-   * Hide the waiting cover
-   * @memberof Ticket
-   * @param {Number} [fade=0] - The time (ms) the cover takes to fade out 
-   * @param {Number} [delay=0] - The delay (ms) before hiding
-   * @param {Boolean} [enable_after] - Whether to enable dragging on the element afterwards (false when a clone of the original)
-   */
-  hide_wait: function(fade, delay, enable_after) {
-    var _this = this;
+        $.each(_this.errorInfo, function(i, msg) {
+          $list.append("<li>" + msg + "</li>");
+        });
 
-    $(".wait", this.$el).delay(delay || 0).fadeOut(fade || 0, function() {
-      if(enable_after) _this.$el.draggable("enable");
-    });
-  },
-
-  /**
-   * Show the waiting cover
-   * @memberof Ticket
-   * @param {string} icon - The class(es) of the icon to show
-   * @param {Number} [fade=50] - The time (ms) the cover takes to fade in
-   * @param {Boolean} [disable=false] - Whether prevent the ticket from being dragged
-   */
-  show_wait: function(icon, fade, disable) {
-    var $wait = $(".wait", this.$el).clearQueue().fadeIn(fade || 50);
-
-    $(".indicators", $wait)
-      .clearQueue()
-      .removeAttr("class")
-      .addClass("indicators " + icon);
-
-    if(disable) this.$el.draggable("disable");
-  },
-
-  /**
-   * Set the waiting icon for the ticket cover
-   * @memberof Ticket
-   * @param {string} icon - The class(es) of the icon to show
-   * @param {Number} fade - The time it takes to both fade out the old icon and fade in the new one
-   */
-  set_wait_icon: function(icon, fade) {
-    var $current_icon = $(".indicators", this.$el),
-        $new_icon = $("<div></div>").addClass("indicators " + icon);
-
-    $.when($current_icon.fadeOut(fade))
-      .then(function() {
-        $current_icon.after($new_icon).remove();
-        $new_icon.hide().fadeIn(fade);
+        _this.group.taskboard.$failDialog.data("ticket", _this).dialog("open");
       });
-  },
+
+      this.$el.draggable({
+        opacity:0.7,
+        helper: function(e) {
+          var original = $(e.target).hasClass("ui-draggable") ? $(e.target) : $(e.target).closest(".ui-draggable");
+          return original.clone().css({
+            width: original.width()
+          });
+        },
+        revert: "invalid",
+        start: function (e, ui) {
+          _this.group.taskboard.set_valid_moves($(this).data("_self"));
+        },
+        stop: function (e, ui) {
+          _this.group.taskboard.reset_droppables();
+        }
+      });
+    },
+
+    /**
+     * Given a new group and / or data, update this ticket. If the update was not
+     * triggered by user interaction and the ticket has changed group, then animate
+     * the move.
+     * @memberof Ticket
+     * @param {Object} data - the new data for the ticket
+     * @param {Boolean} byUser - whether update was triggered by user interaction
+     * @param {Group} [newGroup] - the new group to which this ticket belongs
+     */
+    update: function(data, byUser, newGroup) {
+      this.tData = data;
+      this.update_el();
+
+      if(newGroup) {
+        this.group = newGroup;
+
+        if(byUser) {
+          this.save_ok_feedback();
+        }
+        else {
+          this.animate_move(true);
+        }
+      }
+      else {
+        this.animate_move(false);
+      }
+    },
+
+    /**
+     * Check whether this ticket has no explicit position
+     * @private
+     * @memberof Ticket
+     * @returns {Boolean}
+     */
+    _position_unset: function() {
+      return this.tData.position === null;
+    },
+
+    /**
+     * Given another ticket, calculate whether this ticket should be positioned
+     * above or below the other
+     * @memberof Ticket
+     * @param {Ticket} - other
+     * @returns {Boolean} True = above, False = below
+     */
+    greater_than: function(other) {
+      var i, thisFactor, otherFactor,
+        factors = [
+          [this._position_unset(), other._position_unset()],
+          [this.tData.position, other.tData.position],
+          [this.tData.priority_value, other.tData.priority_value],
+          [this.id, other.id]
+        ];
+
+      for(i = 0; i < factors.length; i ++) {
+        thisFactor = factors[i][0];
+        otherFactor = factors[i][1];
+
+        if(thisFactor != otherFactor) {
+          return thisFactor < otherFactor;
+        }
+      }
+    },
+
+    /**
+     * Animate a ticket update, either into a new group, or into a new position
+     * within a group. If the ticket group and position is unchanged then just
+     * show a refresh icon.
+     * @memberof Ticket
+     * @param {Boolean} intoGroup - Whether the ticket has changed groups
+     */
+    animate_move: function(intoGroup) {
+      var _this = this,
+          needCopy, currentPos, newPos, parentOffset, newOffset, oldOffset;
+
+      // We might also need to move the position within the group
+      if(!intoGroup) {
+        currentPos = $(".ticket", this.group.$elBody).index(this.$el);
+        newPos = this.group._calculate_new_position(this);
+
+        needCopy = currentPos != newPos;
+      }
+
+      if(intoGroup || needCopy) {
+
+        // Calculate the current offset position, move the element, and recalculate
+        parentOffset = this.$el.offsetParent().offset();
+        oldOffset = this.$el.offset();
+
+        // We store the original and move the copy into .$el as 'waiting' user 
+        // feedback is set against .$el
+        this.$elOriginal = this.$el;
+
+        this.group.drop_in_place(this);
+        newOffset = this.$el.offset();
+
+        // Rewrite .$el with a clone
+        this.$el = this.$el.clone().addClass("tmp").appendTo('#content');
+
+        // Slide the original down, but make it appear as a placeholder
+        this.$elOriginal.draggable("disable")
+          .addClass("placeholder")
+          .slideDown();
+
+        // Set feedback against clone
+        this.external_update_feedback(false);
+
+        // Animate clone from original old's position to new
+        this.$el.css('position', 'absolute')
+          .css('left', oldOffset.left - parentOffset.left)
+          .css('top', oldOffset.top - parentOffset.top)
+          .css('zIndex', 90)
+          .css('width', this.$elOriginal.width())
+          .animate({
+              top: newOffset.top - parentOffset.top,
+              left: newOffset.left - parentOffset.left
+            },
+            {
+              duration: 800,
+              complete: function() {
+                $.wait(1000).then($.proxy(_this, "_animate_move_complete"));
+              }
+            });
+      }
+      else {
+        this.external_update_feedback(true);
+      }
+    },
+
+    /**
+     * Once the move animation is complete, remove the clone and reinstate original
+     * @private
+     * @memberof Ticket
+     */
+    _animate_move_complete: function() {
+      this.$el.remove();
+      this.$el = this.$elOriginal.draggable("enable").removeClass("placeholder");
+
+      // Nasty hack to force repainting on Win Chrome
+      // without it, the UI is left with "streak marks" from the move
+      // TODO remove when no longer needed
+      if(isChrome && isWindows) {
+        this.group.$elBody.fadeOut(1).fadeIn(1);
+      }
+    },
+
+    /**
+     * Hide the waiting cover
+     * @memberof Ticket
+     * @param {Number} [fade=0] - The time (ms) the cover takes to fade out 
+     * @param {Number} [delay=0] - The delay (ms) before hiding
+     * @param {Boolean} [enable_after] - Whether to enable dragging on the element afterwards (false when a clone of the original)
+     */
+    hide_wait: function(fade, delay, enable_after) {
+      var _this = this;
+
+      $(".wait", this.$el).delay(delay || 0).fadeOut(fade || 0, function() {
+        if(enable_after) _this.$el.draggable("enable");
+      });
+    },
+
+    /**
+     * Show the waiting cover
+     * @memberof Ticket
+     * @param {string} icon - The class(es) of the icon to show
+     * @param {Number} [fade=50] - The time (ms) the cover takes to fade in
+     * @param {Boolean} [disable=false] - Whether prevent the ticket from being dragged
+     */
+    show_wait: function(icon, fade, disable) {
+      var $wait = $(".wait", this.$el).clearQueue().fadeIn(fade || 50);
+
+      $(".indicators", $wait)
+        .clearQueue()
+        .removeAttr("class")
+        .addClass("indicators " + icon);
+
+      if(disable) this.$el.draggable("disable");
+    },
+
+    /**
+     * Set the waiting icon for the ticket cover
+     * @memberof Ticket
+     * @param {string} icon - The class(es) of the icon to show
+     * @param {Number} fade - The time it takes to both fade out the old icon and fade in the new one
+     */
+    set_wait_icon: function(icon, fade) {
+      var $current_icon = $(".indicators", this.$el),
+          $new_icon = $("<div></div>").addClass("indicators " + icon);
+
+      $.when($current_icon.fadeOut(fade))
+        .then(function() {
+          $current_icon.after($new_icon).remove();
+          $new_icon.hide().fadeIn(fade);
+        });
+    },
+
+    /**
+     * Display a waiting icon and disable the ticket from being dragged
+     * @memberof Ticket
+     */
+    freeze: function(fade) {
+      this.show_wait("icon-spinner icon-spin", fade, true);
+    },
+
+    /**
+     * Display then hide an OK icon after a successful save
+     * @memberof Ticket
+     */
+    save_ok_feedback: function() {
+      this.set_wait_icon("icon-ok-sign color-success-light", 400);
+      this.hide_wait(400, 1400, true);
+    },
+
+    /**
+     * Display (and don't hide) a failed icon, store the reason why
+     * @param {Array} why - a list of reasons why this ticket failed to save
+     * @memberof Ticket
+     */
+    save_failed_feedback: function(why) {
+      this.set_wait_icon("icon-exclamation-sign color-warning-light", 400);
+      this.errorInfo = why;
+    },
+
+    /**
+     * Display then hide a spinner icon after a ticket has been updated remotely
+     * @param {Boolean} is_original - Element is original or clone (don't later enable dragging for clone)
+     * @memberof Ticket
+     */
+    external_update_feedback: function(is_original) {
+      this.show_wait("icon-refresh icon-spin color-info-light", 400, is_original);
+      this.hide_wait(400, 1400, is_original);
+    },
+
+    /**
+     * Remove this ticket's DOM and references
+     * @memberof Ticket
+     */
+    remove: function() {
+      this.$el.slideUp(function() {
+        $(this).remove();
+      });
+
+      delete this.group.taskboard.tickets[this.id];
+      this.group.taskboard.ticketCount --;
+      this.group.ticketCount --;
+      this.group.taskboard.update_ticket_counts();
+    }
+  });
 
   /**
-   * Display a waiting icon and disable the ticket from being dragged
-   * @memberof Ticket
+   * Change query, this will be removed later when replaced with actual query system
    */
-  freeze: function(fade) {
-    this.show_wait("icon-spinner icon-spin", fade, true);
-  },
+  function event_change_query() {
+    var allOptions = {
+          allowClear: false,
+          width: "off",
+          containerCssClass: "block-phone"
+        },
+        milestones = $.extend({ 'data': window.milestones }, allOptions);
+
+    $("#taskboard-query select").select2(allOptions);
+    $("#tb-milestones-select").select2(milestones);
+    $("#taskboard-query select, #tb-milestones-select").on("change", function() {
+      $(this).parent().submit();
+    });
+  }
 
   /**
-   * Display then hide an OK icon after a successful save
-   * @memberof Ticket
+   * Toggle between condensed and expanded view
    */
-  save_ok_feedback: function() {
-    this.set_wait_icon("icon-ok-sign color-success-light", 400);
-    this.hide_wait(400, 1400, true);
-  },
+  function event_toggle_condensed() {
+    $("i", this).toggleClass("icon-th-large icon-th");
+    $("#content").toggleClass("view-condensed");
+  }
 
   /**
-   * Display (and don't hide) a failed icon, store the reason why
-   * @param {Array} why - a list of reasons why this ticket failed to save
-   * @memberof Ticket
+   * Toggle fullscreen mode
    */
-  save_failed_feedback: function(why) {
-    this.set_wait_icon("icon-exclamation-sign color-warning-light", 400);
-    this.errorInfo = why;
-  },
+  function event_toggle_fullscreen() {
+    $("i", this).toggleClass("icon-fullscreen icon-resize-small");
+    $("body").toggleClass("fullscreen");
+  }
 
   /**
-   * Display then hide a spinner icon after a ticket has been updated remotely
-   * @param {Boolean} is_original - Element is original or clone (don't later enable dragging for clone)
-   * @memberof Ticket
+   * Initialise filters
+   * @param {Taskboard} taskboard - The taskboard to communicate with
    */
-  external_update_feedback: function(is_original) {
-    this.show_wait("icon-refresh icon-spin color-info-light", 400, is_original);
-    this.hide_wait(400, 1400, is_original);
-  },
+  function init_filters(taskboard) {
+    var $filterSelect = $("#set-groups-select"),
+        groupsCount = taskboard.groupsOrdered.length, i, group;
 
-  /**
-   * Remove this ticket's DOM and references
-   * @memberof Ticket
-   */
-  remove: function() {
-    this.$el.slideUp(function() {
-      $(this).remove();
+    for(i = 0; i < groupsCount; i ++) {
+      group = taskboard.groupsOrdered[i];
+      $filterSelect.append("<option value='" + group.name + "'" +
+                          (group.visible ? " selected='selected'" : "") +
+                          ">" + group.get_visual_name() + "</option>");
+    }
+
+    $filterSelect.select2({
+      maximumSelectionSize:20
     });
 
-    delete this.group.taskboard.tickets[this.id];
-    this.group.taskboard.ticketCount --;
-    this.group.ticketCount --;
-    this.group.taskboard.update_ticket_counts();
-  }
-});
-
-/**
- * Change query, this will be removed later when replaced with actual query system
- */
-function event_change_query() {
-  var allOptions = {
-        allowClear: false,
-        width: "off",
-        containerCssClass: "block-phone"
-      },
-      milestones = $.extend({ 'data': window.milestones }, allOptions);
-
-  $("#taskboard-query select").select2(allOptions);
-  $("#tb-milestones-select").select2(milestones);
-  $("#taskboard-query select, #tb-milestones-select").on("change", function() {
-    $(this).parent().submit();
-  });
-}
-
-/**
- * Toggle between condensed and expanded view
- */
-function event_toggle_condensed() {
-  $("i", this).toggleClass("icon-th-large icon-th");
-  $("#content").toggleClass("view-condensed");
-}
-
-/**
- * Toggle fullscreen mode
- */
-function event_toggle_fullscreen() {
-  $("i", this).toggleClass("icon-fullscreen icon-resize-small");
-  $("body").toggleClass("fullscreen");
-}
-
-/**
- * Initialise filters
- * @param {Taskboard} taskboard - The taskboard to communicate with
- */
-function init_filters(taskboard) {
-  var $filterSelect = $("#set-groups-select"),
-      groupsCount = taskboard.groupsOrdered.length, i, group;
-
-  for(i = 0; i < groupsCount; i ++) {
-    group = taskboard.groupsOrdered[i];
-    $filterSelect.append("<option value='" + group.name + "'" +
-                        (group.visible ? " selected='selected'" : "") +
-                        ">" + group.get_visual_name() + "</option>");
-  }
-
-  $filterSelect.select2({
-    maximumSelectionSize:20
-  });
-
-  $filterSelect.on("change", function(e) {
-    if(e.added)   taskboard.filter_add(e.added.id);
-    if(e.removed) taskboard.filter_remove(e.removed.id);
-  });
-
-  $("#set-groups-clear").on("click", function() {
-    $filterSelect.select2("val", "");
-    taskboard.filter_groups([]);
-  });
-}
-
-/**
- * Initialise popovers
- */
-function init_popovers() {
-  $("#btn-groups-filter").popoverWith("#popover-groups", {
-    title: "Filter groups"
-  });
-
-  $("#btn-change-workflow").popoverWith("#popover-workflows", {
-    title: "Change workflow"
-  });
-}
-
-/**
- * When automatically filtered on page load, display a notice
- */
-function show_filter_msg($container) {
-  var $filterMsg = $('<div id="filtered-note" class="box-info large take-color pointer">' +
-                       '<i class="icon-info-sign"></i> ' +
-                       'The taskboard has been automatically filtered to show ' +
-                       'only the group with the most results. Click to configure.' +
-                     '</div>');
-
-  $container.before($filterMsg);
-
-  $(document).one("click", function() {
-    $filterMsg.slideUp(function() {
-      $filterMsg.remove();
+    $filterSelect.on("change", function(e) {
+      if(e.added)   taskboard.filter_add(e.added.id);
+      if(e.removed) taskboard.filter_remove(e.removed.id);
     });
 
-    $("#btn-groups-filter").trigger("click");
-  });
-}
-
-/**
- * Generate the select2 to control switching workflows
- */
-function show_workflow_controls(workflows) {
-  var $select = $("#popover-workflows select"), selected, i;
-
-  $("#btn-change-workflow").addClass("show");
-  $("#workflow-count").text(workflows.length);
-
-  for(i = 0; i < workflows.length; i ++) {
-    selected = workflows[i] == taskboard.workflow ? " selected='selected'" : "";
-    $select.append("<option" + selected + " >" + workflows[i] + "</option>");
+    $("#set-groups-clear").on("click", function() {
+      $filterSelect.select2("val", "");
+      taskboard.filter_groups([]);
+    });
   }
 
-  $select.select2({ width: "off" })
-    .on("change", function() {
-      taskboard.change_workflow($(this).val());
+  /**
+   * Initialise popovers
+   */
+  function init_popovers() {
+    $("#btn-groups-filter").popoverWith("#popover-groups", {
+      title: "Filter groups"
     });
-}
 
-/**
- * When a milestone has no tickets, notify the user
- */
-function show_no_ticket_msg($container) {
-  var $msg = $("<div class='box-info large take-color'>" +
-                 "<h1><i class='icon-info-sign'></i> No Tickets Found</h1>" +
-               "</div");
+    $("#btn-change-workflow").popoverWith("#popover-workflows", {
+      title: "Change workflow"
+    });
+  }
 
-  $container.before($msg);
-}
+  /**
+   * When automatically filtered on page load, display a notice
+   */
+  function show_filter_msg($container) {
+    var $filterMsg = $('<div id="filtered-note" class="box-info large take-color pointer">' +
+                         '<i class="icon-info-sign"></i> ' +
+                         'The taskboard has been automatically filtered to show ' +
+                         'only the group with the most results. Click to configure.' +
+                       '</div>');
+
+    $container.before($filterMsg);
+
+    $(document).one("click", function() {
+      $filterMsg.slideUp(function() {
+        $filterMsg.remove();
+      });
+
+      $("#btn-groups-filter").trigger("click");
+    });
+  }
+
+  /**
+   * Generate the select2 to control switching workflows
+   */
+  function show_workflow_controls(workflows) {
+    var $select = $("#popover-workflows select"), selected, i;
+
+    $("#btn-change-workflow").addClass("show");
+    $("#workflow-count").text(workflows.length);
+
+    for(i = 0; i < workflows.length; i ++) {
+      selected = workflows[i] == taskboard.workflow ? " selected='selected'" : "";
+      $select.append("<option" + selected + " >" + workflows[i] + "</option>");
+    }
+
+    $select.select2({ width: "off" })
+      .on("change", function() {
+        taskboard.change_workflow($(this).val());
+      });
+  }
+
+  /**
+   * When a milestone has no tickets, notify the user
+   */
+  function show_no_ticket_msg($container) {
+    var $msg = $("<div class='box-info large take-color'>" +
+                   "<h1><i class='icon-info-sign'></i> No Tickets Found</h1>" +
+                 "</div");
+
+    $container.before($msg);
+  }
+
+}(jQuery));
