@@ -54,7 +54,7 @@
         data: $.extend({
           from: previous,
           to: this.lastUpdate
-        }, this.updateData),
+        }, this.updateData)
       });
     },
 

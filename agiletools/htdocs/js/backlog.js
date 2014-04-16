@@ -663,7 +663,7 @@
       "type:": ["type", "starts_with"],
       "summary:": ["summary", "is_in"],
       "reporter:": ["reporter", "is_in"],
-      "component:": ["component", "is_in"],
+      "component:": ["component", "is_in"]
     },
 
     /**
