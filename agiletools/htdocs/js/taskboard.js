@@ -451,8 +451,7 @@
      * @memberof Taskboard
      */
     _save_ticket_change: function(ticket, newData, fromDialog) {
-      var _this = this, xhr,
-          url = window.tracBaseUrl + "taskboard",
+      var url = window.tracBaseUrl + "taskboard", xhr,
           data = {
             '__FORM_TOKEN': window.formToken,
             'group_name': this.groupBy,
