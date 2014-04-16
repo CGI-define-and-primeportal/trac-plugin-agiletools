@@ -103,8 +103,12 @@
 
       this.set_data_object(this.workflow);
 
+      // If grouping by status, keep a map of ticket IDs to workflow and status
+      if(this.groupBy == "status") this._construct_ticket_map();
+
       this.ticketCount = this.groupCount = 0;
 
+      // Instantiate groups
       for(i = 0; i < this.curGroupData.length; i ++) {
         groupName = this.curGroupData[i];
         ticketsInGroup = this.curTicketData[groupName] || {};
@@ -203,6 +207,35 @@
       else {
         this.curTicketData = this.ticketData;
         this.curGroupData = this.groupData;
+      }
+    },
+
+    /**
+     * When grouping by Status, we want to avoid costly nested loops whenever
+     * we get an update. Therefore we construct a map so that when we receive
+     * an update to a ticket, we use the map to find it's old workflow and group
+     * @private
+     * @memberof Taskboard
+     */
+    _construct_ticket_map: function() {
+      var workflow, group, ticket;
+
+      this.ticketMap = {};
+
+      for(workflow in this.ticketData) {
+        if(this.ticketData.hasOwnProperty(workflow)) {
+
+          for(group in this.ticketData[workflow]) {
+            if(this.ticketData[workflow].hasOwnProperty(group)) {
+
+              for(ticket in this.ticketData[workflow][group]) {
+                if(this.ticketData[workflow][group].hasOwnProperty(ticket)) {
+                  this.ticketMap[ticket] = [workflow, group];
+                }
+              }
+            }
+          }
+        }
       }
     },
 
@@ -490,89 +523,96 @@
      */
     process_update: function(data, textStatus, jqXHR) {
       var byUser = arguments.length == 1,
-          newData, wf, g, t, ticket, newTData, newGroup, oldGroup, op, i;
+          workflow, existingData, newData, op, i, ticketId;
 
-      // For every updated ticket, delete any existing data
-      function delete_ticket_data(id) {
-        var orig_wf, orig_g;
+      if(data.tickets) {
 
-        for(orig_wf in this.ticketData) {
-          if(this.ticketData.hasOwnProperty(orig_wf)) {
-            for(orig_g in this.ticketData[orig_wf]) {
-              if(this.ticketData[orig_wf].hasOwnProperty(orig_g) &&
-                 this.ticketData[orig_wf][orig_g][t]) {
-                delete this.ticketData[orig_wf][orig_g][t];
-                return;
-              }
+        // Process each workflow's data when grouped by status
+        if(this.groupBy == "status") {
+          for(workflow in this.ticketData) {
+            if(this.ticketData.hasOwnProperty(workflow)) {
+              existingData = this.ticketData[workflow];
+              newData = data.tickets[workflow];
+
+              this._process_update_tickets(byUser, existingData, newData, workflow);
             }
+          }
+        }
+
+        else {
+          this._process_update_tickets(byUser, this.ticketData, data.tickets);
+        }
+
+        // Processed ticket data, now refresh group's ticket counts in the UI
+        this.update_ticket_counts();
+      }
+
+      if(data.ops) {
+        for(op in data.ops) {
+          if(data.ops.hasOwnProperty(op)) {
+            window.operationOptions[op] = data.ops[op];
           }
         }
       }
 
-      if(data.tickets) {
-        newData = data.tickets;
+      // If a ticket is changed outside of our current query's scope, then we need
+      // To check if it's currently in our taskboard, and if it is, remove it.
+      if(data.otherChanges) {
+        for(i = 0; i < data.otherChanges.length; i ++) {
+          ticketId = data.otherChanges[i];
 
-        if(this.groupBy == "status") {
-          for(wf in newData) {
-            if(newData.hasOwnProperty(wf)) {
-              for(g in newData[wf]) {
-                if(newData[wf].hasOwnProperty(g)) {
-                  for(t in newData[wf][g]) {
-                    if(newData[wf][g].hasOwnProperty(t)) {
-
-                      // Remove any instantiated tickets which have moved
-                      // to another workflow
-                      if(this.tickets[t] && wf != this.workflow) {
-                        this.tickets[t].remove();
-                      }
-                      delete_ticket_data.apply(this, [t]);
-                    }
-                  }
-                }
-              }
-            }
-          }
-
-          // Add new ticket data
-          $.extend(true, this.ticketData, newData);
-
-          // Only tickets in the current workflow are instantiated
-          // so only perform the following actions on those
-          newData = newData[this.workflow];
+          if(this.tickets[ticketId]) this.tickets[ticketId].remove();
+          this._remove_ticket_data(ticketId);
         }
+      }
+    },
 
-        for(g in newData) {
-          if(newData.hasOwnProperty(g)) {
-            for(t in newData[g]) {
-              if(newData[g].hasOwnProperty(t)) {
-                ticket = this.tickets[t];
-                newTData = newData[g][t];
-                newGroup = this.groups[g];
+    /**
+     * Process ticket updates for a series of group data. Here, we deal with
+     * both retaining knowledge at the Taskboard level as well as using that
+     * info to instantiate / remove and Ticket instances as needed. When grouped
+     * by status, ticket data has an additional outer layer for each workflow.
+     * we only show one workflow at a time, but we need to retain the info for
+     * all workflows.
+     * @private
+     * @memberof Taskboard
+     * @param {Boolean} byUser - User invoked update (i.e. by moving a ticket)
+     * @param {Object} newData - The new 
+     */
+    _process_update_tickets: function(byUser, existingData, newData, workflow) {
+      var group, ticketId, existingTicket, ticketData, newGroup;
 
+      for(group in newData) {
+        if(newData.hasOwnProperty(group)) {
+
+          for(ticketId in newData[group]) {
+            if(newData[group].hasOwnProperty(ticketId)) {
+
+              // Delete Taskboard data about this ticket and update the map
+              // Let jQuery handle complex merging of new & old data at the end.
+              this._remove_ticket_data(ticketId);
+              if(workflow) this.ticketMap[ticketId] = [workflow, group];
+
+              existingTicket = this.tickets[ticketId];
+
+              // If we're not grouping by status, or we are and this information
+              // pertains to the current workflow, add / remove Ticket instances
+              if(!workflow || workflow == this.workflow) {
+                ticketData = newData[group][ticketId];
+                newGroup = this.groups[group];
+
+                // If the new group exists
                 if(newGroup) {
-                  if(ticket) {
-                    oldGroup = ticket.group;
 
-                    // If this is a change we don't already know about
-                    if(ticket.tData.changetime != newTData.changetime) {
-
-                      // If the groups are different, update group counts too
-                      if(newGroup != oldGroup) {
-                        if(newGroup) newGroup.ticket_added();
-                        oldGroup.ticket_removed();
-                        ticket.update(newTData, byUser, newGroup);
-                      }
-                      else {
-                        ticket.update(newTData, byUser);
-                      }
-                    }
+                  // If we haven't seen this ticket before
+                  if(!existingTicket) {
+                    this.tickets[ticketId] = new Ticket(newGroup, ticketId, ticketData);
+                    this.ticketCount ++;
                   }
 
-                  // Ticket moved into query's scope, instantiate
-                  else {
-                    this.tickets[t] = new Ticket(newGroup, t, newTData);
-                    this.ticketCount ++;
-                    newGroup.ticketCount ++;
+                  // If we have, and we didn't previously know about this update
+                  else if(existingTicket.tData.changetime != ticketData.changetime) {
+                    existingTicket.update(ticketData, byUser, newGroup);
                   }
                 }
 
@@ -581,26 +621,47 @@
                   this.refresh();
                 }
               }
+
+              // If grouping by status, and ticket has moved out of the active
+              // workflow (i.e. it's been retyped) -> remove it.
+              else if(existingTicket) {
+                existingTicket.remove();
+              }
             }
-            this.update_ticket_counts();
           }
         }
       }
-      if(data.ops) {
-        for(op in data.ops) {
-          if(data.ops.hasOwnProperty(op)) {
-            window.operationOptions[op] = data.ops[op];
-          }
+
+      // Finally, update the existing data with the new data
+      $.extend(true, existingData, newData);
+    },
+
+    /**
+     * A single interface to remove the ticket data at the Taskboard level.
+     * When grouping by status the ticket might not be instantiated, so we use
+     * our map as a failsafe way of getting it's workflow / group. Otherwise,
+     * we just locate our Ticket instance and use that to find the group.
+     * @private
+     * @memberof Taskboard
+     * @param {Number} ticketId - The ticket ID to look for and remove
+     */
+    _remove_ticket_data: function(ticketId) {
+      var ticketInfo, workflow, group, ticket;
+
+      if(this.groupBy == "status") {
+        ticketInfo = this.ticketMap[ticketId];
+
+        if(ticketInfo) {
+          workflow = ticketInfo[0];
+          group = ticketInfo[1];
+          delete this.ticketData[workflow][group][ticketId];
+          delete this.ticketMap[ticketId];
         }
       }
-      // If a ticket is changed outside of our current query's scope, then we need
-      // To check if it's currently in our taskboard, and if it is, remove it.
-      if(data.otherChanges) {
-        for(i = 0; i < data.otherChanges.length; i ++) {
-          if(this.tickets[data.otherChanges[i]]) {
-            this.tickets[data.otherChanges[i]].remove();
-          }
-        }
+
+      else {
+        ticket = this.tickets[ticketId];
+        delete this.ticketData[ticket.group.name][ticketId];
       }
     },
 
@@ -713,8 +774,11 @@
      */
     change_workflow: function(workflow) {
       if(this.ticketData[workflow]) {
+        var groupData = this.groupData,
+            ticketData = this.ticketData;
+
         this.teardown();
-        this.construct(this.groupData, this.ticketData, workflow);
+        this.construct(groupData, ticketData, workflow);
       }
     },
 
@@ -803,7 +867,8 @@
         this.$elHead.append("<img class='hidden-phone group-avatar' src='" + avatar + "' a />");
       }
 
-      this.$elHead.append("<div class='group-count hidden-phone'></div>");
+      this.countClasses = "group-count hidden-phone";
+      this.$elHead.append("<div class='" + this.countClasses + "'></div>");
       this.$elHead.append("<div class='group-name'>" + this.get_visual_name() + "</div>");
       $("thead tr", this.taskboard.$el).append(this.$elHead);
     },
@@ -946,24 +1011,6 @@
     },
 
     /**
-     * Increment the group's ticket count
-     * @memberof Group
-     */
-    ticket_added: function() {
-      this.ticketCount ++;
-      this.update_ticket_count();
-    },
-
-    /**
-     * Decrement the group's ticket count
-     * @memberof Group
-     */
-    ticket_removed: function() {
-      this.ticketCount --;
-      this.update_ticket_count();
-    },
-
-    /**
      * Update the UI representation of the ticket count. This is colourized to
      * reflect how close this group's count is to the average
      * @memberof Group
@@ -985,7 +1032,9 @@
         count = this.ticketCount;
       }
 
-      $(".group-count", this.$elHead).addClass("case-" + outlier_case).text(count);
+      $(".group-count", this.$elHead).attr("class", this.countClasses)
+        .addClass("case-" + outlier_case)
+        .text(count);
     },
 
     /**
@@ -1115,8 +1164,10 @@
       this.tData = data;
       this.update_el();
 
-      if(newGroup) {
+      if(newGroup != this.group) {
+        this.group.ticketCount --;
         this.group = newGroup;
+        this.group.ticketCount ++;
 
         if(byUser) {
           this.save_ok_feedback();
