@@ -1312,7 +1312,7 @@
         data: data
       });
 
-      $.when(xhr).then($.proxy(this, "_save_changes_response"));
+      $.when(xhr).then($.proxy(this, "_save_changes_response", newParent));
     },
 
     /**
@@ -1320,7 +1320,7 @@
      * @memberof MilestoneTicket
      * @private
      */
-    _save_changes_response: function(data, textStatus, jqXHR) {
+    _save_changes_response: function(newParent, data, textStatus, jqXHR) {
       if(data.hasOwnProperty("tickets")) {
         this.backlog.move_ticket(this, this.milestone, newParent);
 
