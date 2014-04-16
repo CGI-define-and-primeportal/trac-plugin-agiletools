@@ -698,8 +698,6 @@
      * @memberof BacklogMilestone
      */
     filter_tickets: function() {
-      var _this = this;
-
       if(this.filterDeferred) this.filterDeferred.reject();
 
       this.filterDeferred = $.wait(300);
@@ -1037,14 +1035,15 @@
      */
     multi_pick_show_errors_msg: function() {
       var errors = this._errors || [],
+          errorLength = errors.length,
           $list = $("ul", this.backlog.$failDialog).html(""),
           i, j, ticketId, ticketErrors, $tErrors, $tList;
 
       this.backlog.$failDialog.data("_obj", this).dialog("open");
 
-      for(i = 0; i < this._errors.length; i ++) {
-        ticketId = this._errors[i][0];
-        ticketErrors = this._errors[i][1];
+      for(i = 0; i < errorLength; i ++) {
+        ticketId = errors[i][0];
+        ticketErrors = errors[i][1];
         $tErrors = $("<li>Errors for ticket #"+ ticketId + "</li>").appendTo($list);
         $tList = $("<ul></ul>").appendTo($tErrors);
 
@@ -1093,8 +1092,7 @@
      * @memberof BacklogMilestone
      */
     move_selection: function() {
-      var _this = this,
-           $move = $("i", this.$moveTicketsBtn),
+      var $move = $("i", this.$moveTicketsBtn),
           ticketChangetimes, ticketIds, neighbour, selectedId, xhr, ticket;
 
       if(!$move.hasClass("icon-spinner")) {
