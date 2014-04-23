@@ -1,42 +1,52 @@
+/* =============================================================================
+ * backlog_query.js
+ * =============================================================================
+ * @author Ian Clark
+ * @copyright CGI 2014
+ * @file A simple script, injected into Trac's query page, to enable reordering
+ * tickets using a system of dragging and dropping. This adds a toggle to the
+ * left of each ticket's row, which provides the drag and drop handle.
+ * =============================================================================
+ * @requires jQuery (> 1.7)
+ * @requires jQuery UI Sortable (> 1.10)
+ * @requires Bootstrap 2 tooltip
+ * ========================================================================== */
+
 (function($) { "use strict";
 
   $(document).ready(function() {
 
-    var form_token = $("#query input[name='__FORM_TOKEN']").val(),
+    var formToken = $("#query input[name='__FORM_TOKEN']").val(),
         $tables = $("table", "#query-results"),
-        $handle_prototype = $("<td class='rearrange-handle'></td>"),
-        $all_handles = $();
+        $handlePrototype = $("<td class='rearrange-handle'></td>"),
+        $allHandles = $(),
+        helpTooltip = true;
 
     // Add handles to head and body
     $("thead tr", $tables).prepend("<th class='rearrange-handle'></th>");
     $("tbody tr", $tables).each(function() {
-      var $handle = $handle_prototype.clone().prependTo(this);
-      $all_handles = $all_handles.add($handle);
+      var $handle = $handlePrototype.clone().prependTo(this);
+      $allHandles = $allHandles.add($handle);
     });
 
     // Do some magic to make sure the table rows don't appear to change width
     // when being sorted. Also, show a tooltip, but remove it after the first click
-    var help_tooltip = true;
-
-    $all_handles.tooltip({
+    $allHandles.tooltip({
       title: "Reorder ticket",
       placement: "right",
       container: "body"
     });
 
-    $all_handles.on("mousedown", function() {
+    $allHandles.on("mousedown", function() {
       $("td", $(this).parent()).each(function() {
         $(this).width($(this).width());
       });
-      if(help_tooltip) {
-        $all_handles.tooltip("destroy");
-        help_tooltip = false;
+
+      if(helpTooltip) {
+        $allHandles.tooltip("destroy");
+        helpTooltip = false;
       }
     });
-
-    function id_from_row($row) {
-      return $.trim($(".id a", $row).text().replace("#", ""));
-    }
 
     // Make the tables sortable
     $("tbody", $tables).sortable({
@@ -47,31 +57,36 @@
         ui.item.data("old_index", $("tr", this).index(ui.item));
       },
       stop: function(e, ui) {
+        var relativeDirection, $relative;
 
         // Remove our assigned widths (from above) once we've finished sorting
         $("td", ui.item).each(function() {
           $(this).removeAttr("style");
         });
 
+        // If our ticket has changed it's position, save it
         if($("tr", this).index(ui.item) != ui.item.data("old_index")) {
-          // Post this new position
-          var relative_direction = "before",
-              $relative = ui.item.next();
+          relativeDirection = "before";
+          $relative = ui.item.next();
 
           if(!$relative.length) {
-            relative_direction = "after";
+            relativeDirection = "after";
             $relative = ui.item.prev();
           }
 
           $.post(window.tracBaseUrl + "backlog", {
-            '__FORM_TOKEN': form_token,
-            'ticket': id_from_row(ui.item),
-            'relative': id_from_row($relative),
-            'relative_direction': relative_direction
+            "__FORM_TOKEN": formToken,
+            "ticket": id_from_row(ui.item),
+            "relative": id_from_row($relative),
+            "relative_direction": relativeDirection
           });
         }
       }
     });
   });
 
-}(jQuery));
+  function id_from_row($row) {
+    return $.trim($(".id a", $row).text().replace("#", ""));
+  }
+
+}(window.jQuery));
