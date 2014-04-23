@@ -356,7 +356,7 @@ class TaskboardModule(Component):
             return self._save_error(req, ["Must supply a ticket to change"])
 
         field = req.args.get("group_name")
-        if not field or re.search("[^a-z0-9]", field):
+        if not field or re.search("[^a-zA-Z0-9_]", field):
             return self._save_error(req, ["Invalid field name"])
         else:
             # Check to see if we process this field in a unique way
