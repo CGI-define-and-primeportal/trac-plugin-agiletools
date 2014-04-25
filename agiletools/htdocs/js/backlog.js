@@ -20,7 +20,7 @@
  * @requires history.js (https://github.com/browserstate/history.js/)
  * ========================================================================== */
 
-(function($) { "use strict";
+(function($, Class, History) { "use strict";
 
   $(document).ready(function() {
     var backlog;
@@ -127,10 +127,10 @@
         items: ">",
         tolerance: "pointer",
         helper: "clone",
-        start: function(event, ui) {
+        start: function() {
           $(":visible:first", "#backlog").addClass("first-child");
         }, 
-        change: function(event, ui) {
+        change: function() {
           $("#backlog").children().removeClass("first-child")
                        .filter(":visible:first").addClass("first-child");
         },
@@ -507,7 +507,7 @@
      * @private
      * @memberof BacklogMilestone
      */
-    _get_tickets_response: function(first, data, textStatus, jqXHR) {
+    _get_tickets_response: function(first, data) {
       var ticket;
 
       if(!first) {
@@ -917,9 +917,9 @@
       $(document).on("mousemove", function(e) {
         var height = Math.min(Math.max(_this.mpMinHeight, e.pageY - offset + (1.5*_this.mpMinHeight)), maxHeight);
 
-        $("body").attr('unselectable', 'on')
-          .css('user-select', 'none')
-          .on('selectstart', false);
+        $("body").attr("unselectable", "on")
+          .css("user-select", "none")
+          .on("selectstart", false);
 
         _this.$multiPick.css("height", height);
       });
@@ -954,9 +954,9 @@
           position, adjustedHeight;
 
       $(document).off("mousemove");
-      $("body").removeAttr('unselectable')
-               .removeAttr('style')
-               .off('selectstart');
+      $("body").removeAttr("unselectable")
+               .removeAttr("style")
+               .off("selectstart");
 
       // Calculate visible tickets below picker level
       if(!all) {
@@ -1114,10 +1114,10 @@
           xhr = $.ajax({
             type: "POST",
             data: {
-              '__FORM_TOKEN': window.formToken,
-              'tickets': ticketIds.join(","),
-              'changetimes': ticketChangetimes.join(","),
-              'milestone': neighbour.name
+              "__FORM_TOKEN": window.formToken,
+              "tickets": ticketIds.join(","),
+              "changetimes": ticketChangetimes.join(","),
+              "milestone": neighbour.name
             }
           });
 
@@ -1131,7 +1131,7 @@
      * @private
      * @memberof BacklogMilestone
      */
-    _move_selection_response: function(neighbour, $move, data, textStatus, jqXHR) {
+    _move_selection_response: function(neighbour, $move, data) {
       if(data.hasOwnProperty("errors")) {
         this.multi_pick_show_errors(data.errors);
       }
@@ -1285,9 +1285,9 @@
           $prev = this.$container.prev(),
           newParent = this.$container.parent().data("_self"),
           data = { 
-            '__FORM_TOKEN': window.formToken,
-            'ticket': this.tData.id,
-            'ts': this.tData.changetime
+            "__FORM_TOKEN": window.formToken,
+            "ticket": this.tData.id,
+            "ts": this.tData.changetime
           }, xhr;
 
       this.show_wait();
@@ -1318,7 +1318,7 @@
      * @memberof MilestoneTicket
      * @private
      */
-    _save_changes_response: function(newParent, data, textStatus, jqXHR) {
+    _save_changes_response: function(newParent, data) {
       if(data.hasOwnProperty("tickets")) {
         this.backlog.move_ticket(this, this.milestone, newParent);
 
@@ -1441,14 +1441,14 @@
    * To check if a key exists, use "foo" in $.QueryString
    * This is because a key can exist without a value.
    */
-  if("History" in window) {
+  if(History) {
     $.QueryString = (function(unsorted) {
       var i, length = unsorted.length,
           sorted = {}, query, name, value;
 
       if(unsorted[0] === "") return sorted;
       for(i = 0; i < length; i ++) {
-        query = unsorted[i].split('=');
+        query = unsorted[i].split("=");
         name = query[0];
         value = query[1];
 
@@ -1468,4 +1468,4 @@
     })((History.getState().hash.split("?")[1] || "").split("&"));
   }
 
-}(jQuery));
+}(window.jQuery, window.Class, window.History));

@@ -18,7 +18,7 @@
  * @requires Resig's Simple Inheritence Model (http://goo.gl/lWUkve)
  * ========================================================================== */
 
-(function($) { "use strict";
+(function($, Class) { "use strict";
 
   var taskboard,
       isChrome = "chrome" in window,
@@ -410,7 +410,7 @@
      * @memberof Taskboard
      */
     _process_generic_move: function(ticket, newGroup) {
-      var data = { 'value' : newGroup.name };
+      var data = { "value" : newGroup.name };
       this._save_ticket_change(ticket, data, false);
     },
 
@@ -453,10 +453,10 @@
     _save_ticket_change: function(ticket, newData, fromDialog) {
       var url = window.tracBaseUrl + "taskboard", xhr,
           data = {
-            '__FORM_TOKEN': window.formToken,
-            'group_name': this.groupBy,
-            'ticket': ticket.id,
-            'ts': ticket.tData.changetime
+            "__FORM_TOKEN": window.formToken,
+            "group_name": this.groupBy,
+            "ticket": ticket.id,
+            "ts": ticket.tData.changetime
           };
 
       $.extend(data, newData);
@@ -483,7 +483,7 @@
      * @private
      * @memberof Taskboard 
      */
-    _save_ticket_response: function(ticket, data, status, jqXHR) {
+    _save_ticket_response: function(ticket, data) {
       if(data.error) {
         ticket.save_failed_feedback(data.error);
       }
@@ -520,7 +520,7 @@
      * @param {string} [textStatus] 
      * @param {jqXHR} [jqXHR]
      */
-    process_update: function(data, textStatus, jqXHR) {
+    process_update: function(data) {
       var byUser = arguments.length == 1,
           workflow, existingData, newData, op, i, ticketId;
 
@@ -696,7 +696,7 @@
       $("select", this.$optDialog).select2({
         width: "off",
         dropdownCssClass: "ui-dialog",
-        adaptContainerCssClass: function(cls) { return null; }
+        adaptContainerCssClass: function() { return null; }
       });
     },
 
@@ -738,7 +738,7 @@
      * @private
      * @memberof Taskboard
      */
-    _refresh_success: function(data, textStatus, jqXHR) {
+    _refresh_success: function(data) {
       var _this = this;
 
       // Throw all of our data into the window object
@@ -900,11 +900,11 @@
       var _this = this;
 
       this.$elBody.droppable({
-        accept:'div.ticket',
-        over: function(e, ui) {
+        accept: "div.ticket",
+        over: function() {
           $(this).addClass("over");
         },
-        out: function(e, ui) {
+        out: function() {
           $(this).removeClass("over");
         },
         drop: function(e, ui) {
@@ -1141,10 +1141,10 @@
           });
         },
         revert: "invalid",
-        start: function (e, ui) {
+        start: function () {
           _this.group.taskboard.set_valid_moves($(this).data("_self"));
         },
-        stop: function (e, ui) {
+        stop: function () {
           _this.group.taskboard.reset_droppables();
         }
       });
@@ -1249,7 +1249,7 @@
         newOffset = this.$el.offset();
 
         // Rewrite .$el with a clone
-        this.$el = this.$el.clone().addClass("tmp").appendTo('#content');
+        this.$el = this.$el.clone().addClass("tmp").appendTo("#content");
 
         // Slide the original down, but make it appear as a placeholder
         this.$elOriginal.draggable("disable")
@@ -1260,11 +1260,11 @@
         this.external_update_feedback(false);
 
         // Animate clone from original old's position to new
-        this.$el.css('position', 'absolute')
-          .css('left', oldOffset.left - parentOffset.left)
-          .css('top', oldOffset.top - parentOffset.top)
-          .css('zIndex', 90)
-          .css('width', this.$elOriginal.width())
+        this.$el.css("position", "absolute")
+          .css("left", oldOffset.left - parentOffset.left)
+          .css("top", oldOffset.top - parentOffset.top)
+          .css("zIndex", 90)
+          .css("width", this.$elOriginal.width())
           .animate({
               top: newOffset.top - parentOffset.top,
               left: newOffset.left - parentOffset.left
@@ -1410,7 +1410,7 @@
           width: "off",
           containerCssClass: "block-phone"
         },
-        milestones = $.extend({ 'data': window.milestones }, allOptions);
+        milestones = $.extend({ "data": window.milestones }, allOptions);
 
     $("#taskboard-query select").select2(allOptions);
     $("#tb-milestones-select").select2(milestones);
@@ -1493,11 +1493,11 @@
    * When automatically filtered on page load, display a notice
    */
   function show_filter_msg($container) {
-    var $filterMsg = $('<div id="filtered-note" class="box-info large take-color pointer">' +
-                         '<i class="icon-info-sign"></i> ' +
-                         'The taskboard has been automatically filtered to show ' +
-                         'only the group with the most results. Click to configure.' +
-                       '</div>');
+    var $filterMsg = $("<div id='filtered-note' class='box-info large take-color pointer'>" +
+                         "<i class='icon-info-sign'></i> " +
+                         "The taskboard has been automatically filtered to show " +
+                         "only the group with the most results. Click to configure." +
+                       "</div>");
 
     $container.before($filterMsg);
 
@@ -1541,4 +1541,4 @@
     $container.before($msg);
   }
 
-}(jQuery));
+}(window.jQuery, window.Class));

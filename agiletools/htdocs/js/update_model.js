@@ -1,12 +1,10 @@
-(function($) { "use strict";
+(function($, Class) { "use strict";
 
   // TASKBOARD PUBLIC CLASS DEFINITION
   // =================================
   $.LiveUpdater = Class.extend({
 
     init_updates: function(opts) {
-      var _this = this;
-
       opts = opts || {};
 
       this.updateCount = 0;
@@ -59,13 +57,13 @@
     },
 
     iso_8601_datetime: function(date) {
-      function pad(n) { return n < 10 ? '0' + n : n; }
-      return date.getUTCFullYear() + '-' +
-          pad(date.getUTCMonth() + 1) + '-' +
-          pad(date.getUTCDate()) + 'T' +
-          pad(date.getUTCHours()) + ':' +
-          pad(date.getUTCMinutes()) + ':' +
-          pad(date.getUTCSeconds()) + 'Z';
+      function pad(n) { return n < 10 ? "0" + n : n; }
+      return date.getUTCFullYear() + "-" +
+          pad(date.getUTCMonth() + 1) + "-" +
+          pad(date.getUTCDate()) + "T" +
+          pad(date.getUTCHours()) + ":" +
+          pad(date.getUTCMinutes()) + ":" +
+          pad(date.getUTCSeconds()) + "Z";
     },
 
     /**
@@ -76,4 +74,4 @@
     refresh: function() {}
   });
 
-}(jQuery));
+})(window.jQuery, window.Class);
