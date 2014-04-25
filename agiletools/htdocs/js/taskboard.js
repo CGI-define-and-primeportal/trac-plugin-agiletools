@@ -1475,6 +1475,15 @@
       title: "Filter groups"
     });
 
+    // Prevent the select2 from closing the popover
+    var popoverCtrl = $("#btn-groups-filter").data("popoverWith");
+    $("#set-groups-select").on("select2-focus", function() {
+        popoverCtrl.ignoreClicks = true;
+      })
+      .on("select2-blur", function() {
+        popoverCtrl.ignoreClicks = false;
+      });
+
     $("#btn-change-workflow").popoverWith("#popover-workflows", {
       title: "Change workflow"
     });
