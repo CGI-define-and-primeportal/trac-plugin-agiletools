@@ -167,12 +167,13 @@ class BacklogModule(Component):
                 }
 
             add_script_data(req, script_data)
+            data = {'top_level_milestones': Milestone.select(self.env)}
             # Just post the basic template, with a list of milestones
             # The JS will then make a request for tickets in no milestone
             # and tickets in the most imminent milestone
             # The client will be able to make subsequent requests to pull
             # tickets from other milestones and drop tickets into them
-            return "backlog.html", {}, None
+            return "backlog.html", data, None
 
     # IRequestFilter methods
     def pre_process_request(self, req, handler):
