@@ -7,15 +7,17 @@ from trac.db.api import with_transaction
 from trac.resource import ResourceNotFound
 from trac.web import IRequestHandler
 from trac.web.chrome import (ITemplateProvider, add_script, add_stylesheet,
-                             add_script_data)
+                             add_script_data, add_ctxtnav)
 from trac.ticket.query import Query
 from trac.ticket.model import Ticket, Milestone
 from trac.ticket.api import TicketSystem
 from trac.ticket.web_ui import TicketModule
 from trac.util.presentation import to_json
+from trac.util.translation import _
 from logicaordertracker.controller import LogicaOrderController, Operation
 from pkg_resources import resource_filename
 from datetime import datetime
+from genshi.builder import tag
 from trac.util.datefmt import to_utimestamp, utc
 import re
 
@@ -44,12 +46,37 @@ class TaskboardModule(Component):
 
     #IRequestHandler methods
     def match_request(self, req):
-        return req.path_info == '/taskboard'
+        return req.path_info.startswith('/taskboard')
 
     def process_request(self, req):
 
         req.perm.assert_permission('TICKET_VIEW')
 
+        # set the default user query
+        if req.path_info == '/taskboard/set-default-query' and req.method == 'POST':
+            default_milestone = req.args.get('milestone')
+            default_group = req.args.get('group')
+            data = {}
+
+            if default_milestone and default_group:
+
+                try:
+                    Milestone(self.env, default_milestone)
+                except ResourceNotFound:
+                    data['taskboard_default_updated'] = False
+
+                if not default_group in [f['name'] for f in self.valid_fields]:
+                    data['taskboard_default_updated'] = False
+
+                if not data:
+                    req.session['taskboard_user_default_milestone'] = default_milestone
+                    req.session['taskboard_user_default_group'] = default_group
+                    req.session.save()
+                    data['taskboard_default_updated'] = True
+
+                req.send(to_json(data), 'text/json')
+
+        # these headers are only needed when we update tickets via ajax
         req.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         req.send_header("Pragma", "no-cache")
         req.send_header("Expires", 0)
@@ -60,8 +87,9 @@ class TaskboardModule(Component):
 
         milestones = Milestone.select_names_select2(self.env, include_complete=False)
 
-        # Try to find a user selected milestone, and fall back on the most
-        # upcoming milestone if either not set or not found
+        # Try to find a user selected milestone in request - if not found 
+        # check session_attribute for a user saved default, and if that is also
+        # not found and fall back on the most upcoming milestone by due date
         milestone = req.args.get("milestone")
         milestone_not_found = False
         if milestone:
@@ -71,8 +99,16 @@ class TaskboardModule(Component):
                 milestone_not_found = True
                 milestone = None
 
-        if not milestone and len(milestones["results"]):
-            milestone = milestones["results"][0]["text"]
+        if not milestone:
+            # try and find a user saved default
+            default_milestone = req.session.get('taskboard_user_default_milestone')
+            if default_milestone:
+                milestone = default_milestone
+                group_by = req.session.get('taskboard_user_default_group')
+
+            # fall back to most imminent milestone by due date
+            elif len(milestones["results"]):
+                milestone = milestones["results"][0]["text"]
 
         # Ajax post
         if req.args.get("ticket") and xhr:
@@ -112,7 +148,9 @@ class TaskboardModule(Component):
             else:
                 s_data.update({
                     'formToken': req.form_token,
-                    'milestones': milestones
+                    'milestones': milestones,
+                    'milestone': milestone,
+                    'group': group_by,
                 })
                 data.update({
                     'milestone_not_found': milestone_not_found,
@@ -125,6 +163,10 @@ class TaskboardModule(Component):
                 add_script_data(req, s_data)
 
                 add_stylesheet(req, 'agiletools/css/taskboard.css')
+                add_ctxtnav(req, tag.a(tag.i(class_='icon-bookmark'),
+                                       _(" Set as default"),
+                                       id_='set-default-query',
+                                       title=_("Make this your default query")))
                 return "taskboard.html", data, None
 
     def _get_permitted_tickets(self, req, constraints=None):

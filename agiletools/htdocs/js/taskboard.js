@@ -52,6 +52,46 @@
     }
 
     event_change_query();
+
+    /**
+     * When a user clicks the 'Set as default' ribbon icon, we send an 
+     * ajax request to /taskboard/set-default-query with the current 
+     * milestone and group parameter values as data
+    */
+
+    $("#set-default-query").click(function(e){
+
+      // set milestone and group values in form
+      $("#default-query-form input[name='milestone']").val(milestone);
+      $("#default-query-form input[name='group']").val(group);
+
+      $.ajax({
+        type: 'POST',
+        url: window.tracBaseUrl + 'taskboard/set-default-query',
+        data: $("#default-query-form").serialize(),
+        success: function() {
+            // try and replicate a bootstrap alert box
+            $("#content").prepend('<div class="cf alert alert-success alert-dismissable individual">\
+                  <i class="icon-info-sign"></i>\
+                  <div style="display:inline; padding: 10px"> Default query saved </div>\
+                  <button type="button" class="close btn btn-mini" data-dismiss="alert">\
+                    <i class="icon-remove"></i>\
+                  </button>\
+                </div>')
+        },
+        error: function() {
+          // try and replicate a bootstrap alert box
+          $("#content").prepend('<div class="cf alert alert-danger alert-dismissable individual">\
+                  <i class="icon-info-sign"></i>\
+                  <div style="display:inline; padding: 10px"> Unable to save default query </div>\
+                  <button type="button" class="close btn btn-mini" data-dismiss="alert">\
+                    <i class="icon-remove"></i>\
+                  </button>\
+                </div>')
+        }
+      })
+    });
+
   });
 
 
