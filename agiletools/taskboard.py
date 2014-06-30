@@ -54,27 +54,7 @@ class TaskboardModule(Component):
 
         # set the default user query
         if req.path_info == '/taskboard/set-default-query' and req.method == 'POST':
-            default_milestone = req.args.get('milestone')
-            default_group = req.args.get('group')
-            data = {}
-
-            if default_milestone and default_group:
-
-                try:
-                    Milestone(self.env, default_milestone)
-                except ResourceNotFound:
-                    data['taskboard_default_updated'] = False
-
-                if not default_group in [f['name'] for f in self.valid_fields]:
-                    data['taskboard_default_updated'] = False
-
-                if not data:
-                    req.session['taskboard_user_default_milestone'] = default_milestone
-                    req.session['taskboard_user_default_group'] = default_group
-                    req.session.save()
-                    data['taskboard_default_updated'] = True
-
-                req.send(to_json(data), 'text/json')
+            self._set_default_query(req)
 
         # these headers are only needed when we update tickets via ajax
         req.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -183,6 +163,36 @@ class TaskboardModule(Component):
         all_changes = self._get_permitted_tickets(req, constraints=constraints)
         scope_ids = [t["id"] for t in changed_in_scope]
         return [t["id"] for t in all_changes if t["id"] not in scope_ids]
+
+    def _set_default_query(self, req):
+        """Processes a POST request to save a user based query on the task 
+        board. After validating the milestone and group_by values, the 
+        session_attribute table is updated and a JSON repsonse returned."""
+
+        data = {}
+        default_milestone = req.args.get('milestone')
+        default_group = req.args.get('group')
+
+        if default_milestone and default_group:
+
+            try:
+                Milestone(self.env, default_milestone)
+            except ResourceNotFound:
+                data['taskboard_default_updated'] = False
+
+            if not default_group in [f['name'] for f in self.valid_fields]:
+                data['taskboard_default_updated'] = False
+
+            if not data:
+                req.session['taskboard_user_default_milestone'] = default_milestone
+                req.session['taskboard_user_default_group'] = default_group
+                req.session.save()
+                data['taskboard_default_updated'] = True
+
+        else:
+            data['taskboard_default_updated'] = False
+
+        req.send(to_json(data), 'text/json')
 
     def get_ticket_data(self, req, milestone, grouped_by, results):
         """Return formatted data into single object to be used as JSON.
