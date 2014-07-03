@@ -143,6 +143,7 @@ class TaskboardModule(Component):
                 add_script_data(req, s_data)
 
                 add_stylesheet(req, 'agiletools/css/taskboard.css')
+                add_stylesheet(req, 'common/css/ticket.css')
                 add_ctxtnav(req, tag.a(tag.i(class_='icon-bookmark'),
                                        _(" Set as default"),
                                        id_='set-default-query',

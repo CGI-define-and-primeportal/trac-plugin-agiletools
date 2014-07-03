@@ -241,3 +241,26 @@ body.fullscreen #taskboard-controls {
   right: 22px;
   position: absolute;
 }
+
+#ticket-changes {
+  border: 1px solid #AAA;
+  border-radius: 5px;
+}
+
+#show-comments {
+  cursor: pointer;
+  background: linear-gradient(to bottom, #DDD 0%, #BBB 100%);
+  border: 1px solid #AAA;
+  border-radius: 5px;
+  text-align: center;
+  padding: 5px;
+}
+
+#ticket-dialog-spinner {
+  display: block;
+  text-align: center;
+}
+
+#ticket-dialog-text {
+  text-align: center;
+}
