@@ -496,7 +496,7 @@
      * @returns {Deferred}
      */
     get_tickets: function(first) {
-      this.xhr = $.ajax({ data: { milestone: this.name } });
+      this.xhr = $.ajax({ data: { milestone: this.name }, cache: false });
 
       $.when(this.xhr).then($.proxy(this, "_get_tickets_response", first));
       return this.xhr;
