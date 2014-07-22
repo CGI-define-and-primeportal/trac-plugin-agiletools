@@ -263,3 +263,7 @@ body.fullscreen #taskboard-controls {
   text-align: center;
 }
 
+#content.taskboard .ticket.grey-background {
+  background-color: #CCC;
+}
+

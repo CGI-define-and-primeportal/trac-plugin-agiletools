@@ -57,12 +57,12 @@
     // =============
 
     var $t_dialog = $("#ticket-dialog"),
-        show_comments_markup = '<i class="icon-angle-down"></i> Show comments \
-                                <i class="icon-angle-down"></i></p>',
-        hide_comments_markup = '<i class="icon-angle-up"></i> Hide comments \
-                                <i class="icon-angle-up"></i></p>';
+        $show_comments_markup = $('<p>').append('<i class="icon-angle-down"></i> Show comments \
+                                <i class="icon-angle-down"></i>'),
+        $hide_comments_markup = $('<p>').append('<i class="icon-angle-up"></i> Hide comments \
+                                <i class="icon-angle-up"></i>');
 
-    $("a.title", ".ticket").click(function(e){
+    $("#taskboard").on('click', '.ticket', function(e){
 
       // only prevent default if left-click fired
       if (e.which === 1) {
@@ -71,7 +71,13 @@
         var $ticket = $(this).closest('.ticket'),
             ticket_id = $ticket.attr('id').replace('ticket-', ''),
             ticket_summary = $ticket.find('a').text(),
-            dialog = $t_dialog.dialog();
+            opt = {
+              autoOpen: false,
+              modal: true,
+              width: 600,
+              height: 500
+            },
+            dialog = $t_dialog.dialog(opt);
 
         // let the dialog title render HTML 
         // stackoverflow.com/questions/4103964
@@ -79,21 +85,14 @@
           title.html( this.options.title );
         };
 
-        var opt = {
-              autoOpen: false,
-              modal: true,
-              width: 600,
-              height: 500,
-              title: '<a title="Go to ticket #' + ticket_id + '" href=' + 
-                        window.tracBaseUrl + 'ticket/' + ticket_id + '>' + 
-                        ticket_summary + '</a>'
-        };
+        // set the title now it supports HTML markup
+        $t_dialog.dialog('option', 'title', '<a title="Go to ticket #' + ticket_id + '" href=' + 
+              window.tracBaseUrl + 'ticket/' + ticket_id + '>' + ticket_summary + '</a>');
 
-        // over-ride the default dialog title in opts object
-        // opt['title'] = 
-
-        // set the colour of the div so the user can see where it is on the board
-        $ticket.css({'background-color': '#CCC', 'color':'#FFF'});
+        // reset the background styling of all other ticket divs
+        $(".ticket").removeClass("grey-background");
+        // set the colour of selected div so the user can see where it is on the board
+        $ticket.addClass("grey-background");
 
         // show a loading spinner while we wait for the response
         $t_dialog.html("<div class='row-fluid'>\
@@ -109,28 +108,28 @@
           success: function(data) {
             $t_dialog.html($(data).find('#ticket'));
             $t_dialog.append('<div class="row-fluid"><p id="show-comments" \
-              class="col-xs-12">' + show_comments_markup + '</div>');
+              class="col-xs-12">' + $show_comments_markup.html() + '</div>');
             $t_dialog.append('<div id="ticket-changes" class="hidden"></div>');
             $("#ticket-changes").html($(data).find("#changelog"));
           }
         });
 
-        $t_dialog.dialog(opt).dialog('open');
+        dialog.dialog('open');
       }
     });
 
     // Catch the event when a user closes the ticket-dialog
-    $t_dialog.bind('dialogclose', function(event) {
-     $(".ticket").css('background-color', '');
+    $t_dialog.on('dialogclose', function() {
+     $(".ticket").removeClass('grey-background');
     });
 
     // Catch the event when a user clicks 'Show comments' element in ticket-dialog
     $t_dialog.on('click', '#show-comments', function() {
       $("#ticket-changes").slideToggle(400, function() {
         if ($("#ticket-changes").is(":visible")) {
-          $("#show-comments").html(hide_comments_markup);
+          $("#show-comments").html($hide_comments_markup.html());
         } else {
-          $("#show-comments").html(show_comments_markup);
+          $("#show-comments").html($show_comments_markup.html());
         }
       });
     });
