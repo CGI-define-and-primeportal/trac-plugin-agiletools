@@ -65,7 +65,7 @@
     $("#taskboard").on('click', '.ticket', function(e){
 
       // only prevent default if left-click fired
-      if (e.which === 1) {
+      if (e.button === 0) {
         e.preventDefault();
 
         var $ticket = $(this).closest('.ticket'),
