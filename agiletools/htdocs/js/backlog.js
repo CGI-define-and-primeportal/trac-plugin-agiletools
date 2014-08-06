@@ -1203,12 +1203,12 @@
         "</td>" +
       "</tr>");
 
-      this.$hoursFeedback = $("<td class='hours'></td>").appendTo(this.$container);
+      this.$hoursFeedback = $("<td class='hours' title='Estimated Remaining Hours'></td>").appendTo(this.$container);
       this.$hours          = $("<span>" + pretty_time(this.tData.hours) + "</span>").appendTo(this.$hoursFeedback);
       this.$feedback        = $("<i class='hidden'></i>").appendTo(this.$hoursFeedback);
 
       this.$container.appendTo(this.milestone.$tBody).data("_self", this);
-      $(".type", this.$container).tooltip({
+      $(".type, .hours", this.$container).tooltip({
         placement: "top",
         container: "body"
       });

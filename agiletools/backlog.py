@@ -21,7 +21,7 @@ class BacklogModule(Component):
     implements(IRequestHandler, ITemplateProvider, IRequestFilter)
 
     fields = ("summary", "type", "component", "priority", "priority_value", 
-              "changetime", "reporter", "estimatedhours", "status")
+              "changetime", "reporter", "remaininghours", "status")
 
     #IRequestHandler methods
     def match_request(self, req):
@@ -208,12 +208,12 @@ class BacklogModule(Component):
                                    for k, v in result.iteritems()
                                    if k in self.fields)
 
-                if "estimatedhours" in filtered_result:
+                if "remaininghours" in filtered_result:
                     try:
-                        hours = float(filtered_result["estimatedhours"])
+                        hours = float(filtered_result["remaininghours"])
                     except (ValueError, TypeError):
                         hours = 0
-                    del filtered_result["estimatedhours"]
+                    del filtered_result["remaininghours"]
                 else:
                     hours = 0
 
