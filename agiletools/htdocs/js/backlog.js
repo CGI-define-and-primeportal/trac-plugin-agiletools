@@ -1390,7 +1390,7 @@
         minutes = Math.floor((float_time - hours) * 60),
         result, pad;
 
-    if(hours) {
+    if(hours || minutes) {
       result = hours + "h";
 
       if(minutes) {
