@@ -817,9 +817,7 @@
           ticket: ticket,
           group: newGroup
         });
-      // Bind events from userfield js 
-      $('.user-field').userField();
-      
+
       $("select", this.$optDialog).select2({
         width: "off",
         dropdownCssClass: "ui-dialog",
