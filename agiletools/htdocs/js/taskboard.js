@@ -1014,6 +1014,18 @@
       }
 
       this.$elBody.data("_self", this);
+     
+      // we need to add an extra div, as table cells take up the height of 
+      // their contents according to CSS spec - which would ignore the height
+      // property needed by oveflow: scroll/auto
+      var ticket_wrapper = "<div class='tickets-wrap'></div>"
+      if (this.$elBody.children().length) {
+        this.$elBody.children().wrapAll(ticket_wrapper);
+      }
+      else {
+        this.$elBody.append(ticket_wrapper);
+      }
+
       $("tbody tr", this.taskboard.$el).append(this.$elBody);
     },
 
@@ -1130,7 +1142,6 @@
           return false;
         }
       });
-
       return pos;
     },
 

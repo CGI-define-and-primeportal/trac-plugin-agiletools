@@ -267,3 +267,19 @@ body.fullscreen #taskboard-controls {
   background-color: #CCC;
 }
 
+#taskboard .tickets.ui-droppable {
+  overflow-y: auto;
+}
+
+@media (min-height:400px) and (max-height: 680px) {
+  #taskboard .tickets-wrap { max-height: 330px; }
+}
+@media (min-height:681px) and (max-height: 799px) {
+  #taskboard .tickets-wrap { max-height: 430px; }
+}
+@media (min-height:800px) and (max-height: 979px) {
+  #taskboard .tickets-wrap { max-height: 580px; }
+}
+@media (min-height:980px) and (max-height: 1100px) {
+  #taskboard .tickets-wrap { max-height: 680px; }
+}
