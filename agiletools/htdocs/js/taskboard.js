@@ -44,6 +44,7 @@
       }
 
       $("#taskboard-controls").addClass("visible");
+      $("#btn-stat-fields").on("click", event_toggle_stat_fields);
       $("#btn-switch-view").on("click", event_toggle_condensed);
       $("#btn-fullscreen").on("click", event_toggle_fullscreen);
     }
@@ -667,7 +668,7 @@
           this._process_update_tickets(byUser, this.ticketData, data.tickets);
         }
 
-        // Processed ticket data, now refresh group's ticket counts in the UI
+        // Processed ticket data, now refreshO group's ticket counts in the UI
         this.update_ticket_counts();
       }
 
@@ -1233,7 +1234,7 @@
       this.group.drop_in_place(this);
     },
 
-    statFields: ["type", "owner", "priority", "milestone"],
+    statFields: window.display_fields,
 
     /**
      * Update the ticket's UI values
@@ -1554,6 +1555,29 @@
     $("#taskboard-query select, #tb-milestones-select").on("change", function() {
       $(this).parent().submit();
     });
+    $("#update-taskboard").on("click", function() {
+      $("#taskboard-query").submit();
+    });
+  }
+
+
+  /**
+   * Toggle the visibility of the ticket field check button container.
+   */
+  function event_toggle_stat_fields() {
+
+    $("#mods-display-fields").toggle();
+
+    // it would be better to use a class which adds margin-top and then 
+    // toggle that class, but as the value for this property is 
+    // computed at run-time I've opted for this approach
+    if ($("#mods-display-fields").is(":visible")) {
+      $("#taskboard").css("margin-top", 
+        ($("#mods-display-fields").outerHeight() + 20).toString() + "px");
+    } else {
+      $("#taskboard").css("margin-top", "10px");
+    }
+
   }
 
   /**

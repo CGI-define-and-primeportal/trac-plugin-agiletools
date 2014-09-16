@@ -12,41 +12,54 @@
   <body>
     <div id="content" class="taskboard view-condensed">
       <h1>Task board</h1>
-      <form action="" method="GET" id="taskboard-query" class="inline-block block-phone">
-        <input id="tb-milestones-select" type="hidden" 
-               name="milestone" value="${current_milestone}" />
-        <select name="group">
-          <option py:for="field in group_by_fields" value="${field.name}"
-                  selected="${field.name == cur_group and 'selected' or None}">
-            ${field.label}
-          </option>
-        </select>
-      </form>
-      <div id="taskboard-controls" class="hidden inline-block">
-        <div py:if="cur_group == 'status'"
-             id="btn-change-workflow" class="btn btn-primary tooltipped" title="Change workflow">
-          <i class="icon-random"></i>
-        </div>
-        <div id="btn-groups-filter" class="btn tooltipped" title="Filter groups"
-             data-class="popover-groups">
-          <i class="icon-eye-open"></i>
-        </div>
-        <div id="btn-switch-view" class="btn tooltipped" title="Switch view">
-          <i class="icon-th"></i>
-        </div>
-        <div id="btn-fullscreen" class="btn tooltipped" title="Toggle fullscreen">
-          <i class="icon-fullscreen"></i>
-        </div>
-        <div id="popover-elements" class="hidden">
-          <div id="popover-groups">
-            <a id="set-groups-clear">
-              <i class="icon-remove"></i> Remove all
-            </a>
-            <select id="set-groups-select" multiple="multiple"></select>
+      <div id="taskboard-action-wrapper">
+        <form action="" method="GET" id="taskboard-query" class="inline-block block-phone">
+          <input id="tb-milestones-select" type="hidden" 
+                 name="milestone" value="${current_milestone}" />
+          <select name="group">
+            <option py:for="field in group_by_fields" value="${field.name}"
+                    selected="${field.name == cur_group and 'selected' or None}">
+              ${field.label}
+            </option>
+          </select>
+          <div id="mods-display-fields">
+            <py:for each="field in display_fields">
+              <label> <input type="checkbox" name="field" value="$field.name"
+                checked="${any([(value == field.name) for value in cur_display_fields])
+                                              and 'checked' or None}" />
+              ${field.label} </label>
+            </py:for>
           </div>
-          <div py:if="cur_group == 'status'" id="popover-workflows">
-            <select class="full-width">
-            </select>
+        </form>
+        <div id="taskboard-controls" class="hidden inline-block">
+          <div id="btn-stat-fields" class="btn tooltipped" title="Filter ticket fields">
+            <i class="icon-align-left"></i>
+          </div>
+          <div py:if="cur_group == 'status'"
+               id="btn-change-workflow" class="btn btn-primary tooltipped" title="Change workflow">
+            <i class="icon-random"></i>
+          </div>
+          <div id="btn-groups-filter" class="btn tooltipped" title="Filter groups"
+               data-class="popover-groups">
+            <i class="icon-eye-open"></i>
+          </div>
+          <div id="btn-switch-view" class="btn tooltipped" title="Switch view">
+            <i class="icon-th"></i>
+          </div>
+          <div id="btn-fullscreen" class="btn tooltipped" title="Toggle fullscreen">
+            <i class="icon-fullscreen"></i>
+          </div>
+          <div id="popover-elements" class="hidden">
+            <div id="popover-groups">
+              <a id="set-groups-clear">
+                <i class="icon-remove"></i> Remove all
+              </a>
+              <select id="set-groups-select" multiple="multiple"></select>
+            </div>
+            <div py:if="cur_group == 'status'" id="popover-workflows">
+              <select class="full-width">
+              </select>
+            </div>
           </div>
         </div>
       </div>

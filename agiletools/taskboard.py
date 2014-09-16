@@ -35,6 +35,14 @@ class TaskboardModule(Component):
             default="owner, reporter, qualityassurancecontact",
             doc="""fields whose values represent users, separated by ',')"""
             )
+    default_display_fields = ListOption("taskboard", "display_fields",
+            default="type, owner, priority",
+            doc="""fields displayed inside ticket nodes on taskboard"""
+            )
+    visible_fields = ListOption("taskboard", "visible_fields",
+            default="summary, milestone, type, component, status, "
+                    "priority, priority_value, owner, changetime",
+            doc="""fields available to be displayed inside ticket nodes""")
 
     @property
     def valid_fields(self):
@@ -114,6 +122,7 @@ class TaskboardModule(Component):
             if tickets:
                 s_data = self.get_ticket_data(req, milestone, group_by, tickets)
                 s_data['total_tickets'] = len(tickets)
+                s_data['display_fields'] = self._get_display_fields(req)
                 data['cur_group'] = s_data['groupName']
             else:
                 s_data = {}
@@ -136,6 +145,9 @@ class TaskboardModule(Component):
                     'milestone_not_found': milestone_not_found,
                     'current_milestone': milestone,
                     'group_by_fields': self.valid_fields,
+                    'display_fields': [f for f in TicketSystem(self.env).get_ticket_fields()
+                                            if f['name'] in self.visible_fields],
+                    'cur_display_fields': self._get_display_fields(req)
                 })
 
                 add_script(req, 'agiletools/js/update_model.js')
@@ -148,6 +160,10 @@ class TaskboardModule(Component):
                                        _(" Set as default"),
                                        id_='set-default-query',
                                        title=_("Make this your default query")))
+                add_ctxtnav(req, tag.a(tag.i(class_='icon-refresh'),
+                                       _(" Update"),
+                                       id_='update-taskboard',
+                                       title=_("Apply filters")))
                 return "taskboard.html", data, None
 
     def _get_permitted_tickets(self, req, constraints=None):
@@ -195,14 +211,32 @@ class TaskboardModule(Component):
 
         req.send(to_json(data), 'text/json')
 
+    def _get_display_fields(self, req):
+        """Determines which fields to show inside each ticket node.
+
+        First we check the request object for any custom parameters, 
+        otherwise we fall back to the default ListOption.
+
+        We validate the selected fields against the visible_fields ListOption.
+        """
+
+        if 'field' in req.args:
+            display_fields = req.args['field']
+            # if there is only one stats filter value 
+            # we need to place it into an iterable
+            if isinstance(display_fields, basestring):
+                display_fields = [display_fields]
+        else:
+            display_fields = self.default_display_fields
+
+        return [f for f in display_fields if f in self.visible_fields]
+
     def get_ticket_data(self, req, milestone, grouped_by, results):
         """Return formatted data into single object to be used as JSON.
 
         Checks for a valid field (or groups by status).
         Then looks for a custom method for field, else uses standard method.
         """
-        visible_fields = ("summary", "milestone", "type", "component", "status",
-                  "priority", "priority_value", "owner", "changetime")
 
         # Try to group tickets by a user-specified valid field
         # if the field doesn't exist, we fall back to grouping by status
@@ -224,7 +258,7 @@ class TaskboardModule(Component):
             else:
                 get_f = self._get_standard_data_
 
-        ticket_data = get_f(req, milestone, group_by, results, visible_fields)
+        ticket_data = get_f(req, milestone, group_by, results, self.visible_fields)
         return self._formatted_data(ticket_data)
 
     def _get_standard_data_(self, req, milestone, field, results, fields):

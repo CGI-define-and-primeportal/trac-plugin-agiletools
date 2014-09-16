@@ -288,3 +288,17 @@ body.fullscreen #taskboard-controls {
 @media (min-height:980px) and (max-height: 1100px) {
   #taskboard .tickets-wrap { max-height: 680px; }
 }
+
+#taskboard-action-wrapper {
+  position: relative;
+}
+
+#mods-display-fields {
+  position: absolute;
+}
+
+#mods-display-fields label {
+  display: inline-block;
+  padding: 0 50px 10px 0;
+  width: 205px;
+}
