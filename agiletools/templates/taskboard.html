@@ -8,9 +8,8 @@
   <head>
     <title>Task board</title>
   </head>
-
   <body>
-    <div id="content" class="taskboard view-condensed">
+    <div id="content" class="taskboard ${'view-condensed' if condensed else ''}">
       <h1>Task board</h1>
       <div id="taskboard-action-wrapper">
         <form action="" method="GET" id="taskboard-query" class="inline-block block-phone">

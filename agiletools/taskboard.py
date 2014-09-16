@@ -147,7 +147,8 @@ class TaskboardModule(Component):
                     'group_by_fields': self.valid_fields,
                     'display_fields': [f for f in TicketSystem(self.env).get_ticket_fields()
                                             if f['name'] in self.visible_fields],
-                    'cur_display_fields': self._get_display_fields(req)
+                    'cur_display_fields': self._get_display_fields(req),
+                    'condensed': self._show_condensed_view(req)
                 })
 
                 add_script(req, 'agiletools/js/update_model.js')
@@ -230,6 +231,26 @@ class TaskboardModule(Component):
             display_fields = self.default_display_fields
 
         return [f for f in display_fields if f in self.visible_fields]
+
+    def _show_condensed_view(self, req):
+        """Calculates if the task board should show a condensed view of tickets.
+
+        This could be explicit through the use of the 'view' parameter, 
+        or implicit through the submission of a new query which includes 
+        fields different from the default display fields.
+
+        By default the task board reverts to a condensed view.
+        """
+
+        if 'view' in req.args:
+            if req.args['view'] == 'condensed':
+                return True
+            if req.args['view'] == 'expanded':
+                return False
+        elif 'field' in req.args:
+            return set(self._get_display_fields(req)) == set(self.default_display_fields)
+        else:
+            return True
 
     def get_ticket_data(self, req, milestone, grouped_by, results):
         """Return formatted data into single object to be used as JSON.
