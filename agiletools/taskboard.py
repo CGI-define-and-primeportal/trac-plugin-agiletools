@@ -18,6 +18,7 @@ from logicaordertracker.controller import LogicaOrderController, Operation
 from pkg_resources import resource_filename
 from datetime import datetime
 from genshi.builder import tag
+from itertools import chain
 from trac.util.datefmt import to_utimestamp, utc
 import re
 
@@ -73,6 +74,8 @@ class TaskboardModule(Component):
 
         group_by = req.args.get("group", "status")
 
+        user_saved_query = False
+
         milestones = Milestone.select_names_select2(self.env, include_complete=False)
 
         # Try to find a user selected milestone in request - if not found 
@@ -93,6 +96,7 @@ class TaskboardModule(Component):
             if default_milestone:
                 milestone = default_milestone
                 group_by = req.session.get('taskboard_user_default_group')
+                user_saved_query = True
 
             # fall back to most imminent milestone by due date
             elif len(milestones["results"]):
@@ -122,7 +126,7 @@ class TaskboardModule(Component):
             if tickets:
                 s_data = self.get_ticket_data(req, milestone, group_by, tickets)
                 s_data['total_tickets'] = len(tickets)
-                s_data['display_fields'] = self._get_display_fields(req)
+                s_data['display_fields'] = self._get_display_fields(req, user_saved_query)
                 data['cur_group'] = s_data['groupName']
             else:
                 s_data = {}
@@ -147,8 +151,8 @@ class TaskboardModule(Component):
                     'group_by_fields': self.valid_fields,
                     'display_fields': [f for f in TicketSystem(self.env).get_ticket_fields()
                                             if f['name'] in self.visible_fields],
-                    'cur_display_fields': self._get_display_fields(req),
-                    'condensed': self._show_condensed_view(req)
+                    'cur_display_fields': self._get_display_fields(req, user_saved_query),
+                    'condensed': self._show_condensed_view(req, user_saved_query)
                 })
 
                 add_script(req, 'agiletools/js/update_model.js')
@@ -184,26 +188,38 @@ class TaskboardModule(Component):
 
     def _set_default_query(self, req):
         """Processes a POST request to save a user based query on the task 
-        board. After validating the milestone and group_by values, the 
+        board. After validating the various values passed in req.args, the 
         session_attribute table is updated and a JSON repsonse returned."""
 
         data = {}
         default_milestone = req.args.get('milestone')
         default_group = req.args.get('group')
+        default_fields = req.args.get('field')
+        default_view = req.args.get('view')
 
-        if default_milestone and default_group:
+        if all([default_milestone, default_group, default_fields, default_view]):
 
             try:
                 Milestone(self.env, default_milestone)
             except ResourceNotFound:
                 data['taskboard_default_updated'] = False
 
-            if not default_group in [f['name'] for f in self.valid_fields]:
+            allowed_fields = self.visible_fields + [f['name'] for f in self.valid_fields]
+            for f in chain([default_group], default_fields.split(',')):
+                if f not in allowed_fields:
+                    data['taskboard_default_updated'] = False
+                    break
+
+            if default_view not in ['condensed', 'expanded']:
                 data['taskboard_default_updated'] = False
 
             if not data:
-                req.session['taskboard_user_default_milestone'] = default_milestone
-                req.session['taskboard_user_default_group'] = default_group
+                req.session.update({
+                    'taskboard_user_default_milestone': default_milestone,
+                    'taskboard_user_default_group': default_group,
+                    'taskboard_user_default_fields': default_fields,
+                    'taskboard_user_default_view': default_view
+                })
                 req.session.save()
                 data['taskboard_default_updated'] = True
 
@@ -212,7 +228,7 @@ class TaskboardModule(Component):
 
         req.send(to_json(data), 'text/json')
 
-    def _get_display_fields(self, req):
+    def _get_display_fields(self, req, default_query=False):
         """Determines which fields to show inside each ticket node.
 
         First we check the request object for any custom parameters, 
@@ -220,6 +236,12 @@ class TaskboardModule(Component):
 
         We validate the selected fields against the visible_fields ListOption.
         """
+
+        if default_query:
+            try:
+                return [f for f in req.session['taskboard_user_default_fields'].split(',')]
+            except KeyError:
+                pass
 
         if 'field' in req.args:
             display_fields = req.args['field']
@@ -232,17 +254,22 @@ class TaskboardModule(Component):
 
         return [f for f in display_fields if f in self.visible_fields]
 
-    def _show_condensed_view(self, req):
+    def _show_condensed_view(self, req, default_query=False):
         """Calculates if the task board should show a condensed view of tickets.
 
         This could be explicit through the use of the 'view' parameter, 
         or implicit through the submission of a new query which includes 
-        fields different from the default display fields.
+        fields different from the default display fields. The user may also 
+        be using a default query, where this value is pre-determined.
 
         By default the task board reverts to a condensed view.
         """
 
-        if 'view' in req.args:
+        if default_query:
+            view =  req.session.get('taskboard_user_default_view')
+            if view:
+                return view == 'condensed'
+        elif 'view' in req.args:
             if req.args['view'] == 'condensed':
                 return True
             if req.args['view'] == 'expanded':

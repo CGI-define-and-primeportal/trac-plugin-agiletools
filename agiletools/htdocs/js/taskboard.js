@@ -147,6 +147,11 @@
         // set milestone and group values in form
         $("#default-query-form input[name='milestone']").val(milestone);
         $("#default-query-form input[name='group']").val(group);
+        // find the checked inputs in the display fields node
+        var fields = $("#mods-display-fields input:checked").map(function(i,el){return el.value;}).get()
+        $("#default-query-form input[name='field']").val(fields)
+        var view = $("#content").hasClass("view-condensed") ? "condensed" : "expanded";
+        $("#default-query-form input[name='view']").val(view)
 
         $.ajax({
           type: 'POST',
