@@ -19,6 +19,7 @@ from pkg_resources import resource_filename
 from datetime import datetime
 from genshi.builder import tag
 from itertools import chain
+import json
 from trac.util.datefmt import to_utimestamp, utc
 import re
 
@@ -205,7 +206,8 @@ class TaskboardModule(Component):
                 data['taskboard_default_updated'] = False
 
             allowed_fields = self.visible_fields + [f['name'] for f in self.valid_fields]
-            for f in chain([default_group], default_fields.split(',')):
+            display_fields = default_fields.split(',')
+            for f in chain([default_group], display_fields):
                 if f not in allowed_fields:
                     data['taskboard_default_updated'] = False
                     break
@@ -217,7 +219,7 @@ class TaskboardModule(Component):
                 req.session.update({
                     'taskboard_user_default_milestone': default_milestone,
                     'taskboard_user_default_group': default_group,
-                    'taskboard_user_default_fields': default_fields,
+                    'taskboard_user_default_fields': json.dumps(display_fields),
                     'taskboard_user_default_view': default_view
                 })
                 req.session.save()
@@ -239,7 +241,7 @@ class TaskboardModule(Component):
 
         if default_query:
             try:
-                return [f for f in req.session['taskboard_user_default_fields'].split(',')]
+                return json.loads(req.session['taskboard_user_default_fields'])
             except KeyError:
                 pass
 
