@@ -31,7 +31,7 @@ class TaskboardModule(Component):
     restricted_fields = ListOption("taskboard", "restricted_fields",
             default="statusgroup, workflow, resolution, type, milestone",
             doc="""fields that shouldn't be present
-            on the taskboard, separated by ',')"""
+            in the taskboard groupby option, separated by ',')"""
             )
     user_fields = ListOption("taskboard", "user_fields",
             default="owner, reporter, qualityassurancecontact",
@@ -41,18 +41,31 @@ class TaskboardModule(Component):
             default="type, owner, priority",
             doc="""fields displayed inside ticket nodes on taskboard"""
             )
-    visible_fields = ListOption("taskboard", "visible_fields",
-            default="summary, milestone, type, component, status, "
-                    "priority, priority_value, owner, changetime",
-            doc="""fields available to be displayed inside ticket nodes""")
 
     @property
-    def valid_fields(self):
+    def valid_grouping_fields(self):
         """All fields with discrete values which aren't in restricted list"""
         return [f for f in TicketSystem(self.env).get_ticket_fields()
                 if (f.get("type") in ("select", "radio")
                 or f.get("name") in self.user_fields)
                 and f.get("name") not in self.restricted_fields]
+
+    @property
+    def valid_grouping_field_names(self):
+        """Iterable of valid groupby field names"""
+        return [f['name'] for f in self.valid_grouping_fields]
+
+    @property
+    def valid_display_fields(self):
+        """All fields except time and userlist type fields"""
+        # we need text for effort and hours for totalhours etc
+        return [f for f in TicketSystem(self.env).get_ticket_fields()
+                  if f.get("type") not in ("time", "textarea")]
+
+    @property
+    def valid_display_field_names(self):
+        """Iterable of valid display field names"""
+        return [f['name'] for f in self.valid_display_fields]
 
     #IRequestHandler methods
     def match_request(self, req):
@@ -121,13 +134,15 @@ class TaskboardModule(Component):
                 if from_iso and to_iso:
                     constr['changetime'] = [from_iso + ".." + to_iso]
 
-            # Get all tickets by milestone
-            tickets = self._get_permitted_tickets(req, constraints=constr)
+            # Get all tickets by milestone and specify ticket fields to retrieve
+            cols = self._get_display_fields(req, user_saved_query)
+            tickets = self._get_permitted_tickets(req, constraints=constr, 
+                                                  columns=cols)
 
             if tickets:
                 s_data = self.get_ticket_data(req, milestone, group_by, tickets)
                 s_data['total_tickets'] = len(tickets)
-                s_data['display_fields'] = self._get_display_fields(req, user_saved_query)
+                s_data['display_fields'] = cols
                 data['cur_group'] = s_data['groupName']
             else:
                 s_data = {}
@@ -149,10 +164,9 @@ class TaskboardModule(Component):
                 data.update({
                     'milestone_not_found': milestone_not_found,
                     'current_milestone': milestone,
-                    'group_by_fields': self.valid_fields,
-                    'display_fields': [f for f in TicketSystem(self.env).get_ticket_fields()
-                                            if f['name'] in self.visible_fields],
-                    'cur_display_fields': self._get_display_fields(req, user_saved_query),
+                    'group_by_fields': self.valid_grouping_fields,
+                    'display_fields': self.valid_display_fields,
+                    'cur_display_fields': cols,
                     'condensed': self._show_condensed_view(req, user_saved_query)
                 })
 
@@ -172,8 +186,20 @@ class TaskboardModule(Component):
                                        title=_("Apply filters")))
                 return "taskboard.html", data, None
 
-    def _get_permitted_tickets(self, req, constraints=None):
-        query = Query(self.env, constraints=constraints, max=0)
+    def _get_permitted_tickets(self, req, constraints=None, columns=None):
+        """
+        If we don't pass a list of column/field values, the Query module 
+        defaults to the first seven colums - see get_default_columns().
+        """
+
+        # make sure that we get the ticket summary
+        if columns:
+            for f in ('summary', 'type'):
+                if f not in columns:
+                    columns.append(f)
+
+        # what field data should we get
+        query = Query(self.env, constraints=constraints, max=0, cols=columns)
         return [ticket for ticket in query.execute(req)
                 if 'TICKET_VIEW' in req.perm('ticket', ticket['id'])]
 
@@ -206,10 +232,9 @@ class TaskboardModule(Component):
             except ResourceNotFound:
                 data['invalid_milestone'] = default_milestone
 
-            allowed_fields = self.visible_fields + [f['name'] for f in self.valid_fields]
             display_fields = default_fields.split(',')
             for f in chain([default_group], display_fields):
-                if f not in allowed_fields:
+                if f not in self.valid_display_field_names:
                     data['invalid_field'] = f
                     break
 
@@ -234,7 +259,8 @@ class TaskboardModule(Component):
         First we check the request object for any custom parameters, 
         otherwise we fall back to the default ListOption.
 
-        We validate the selected fields against the visible_fields ListOption.
+        We validate the selected fields against the valid_display_field_name 
+        property.
         """
 
         if default_query:
@@ -252,7 +278,7 @@ class TaskboardModule(Component):
         else:
             display_fields = self.default_display_fields
 
-        return [f for f in display_fields if f in self.visible_fields]
+        return sorted([f for f in display_fields if f in self.valid_display_field_names])
 
     def _show_condensed_view(self, req, default_query=False):
         """Calculates if the task board should show a condensed view of tickets.
@@ -290,7 +316,7 @@ class TaskboardModule(Component):
         # if the field doesn't exist, we fall back to grouping by status
         group_by = None
 
-        for field in self.valid_fields:
+        for field in self.valid_grouping_fields:
             name = field.get("name")
             if name in (grouped_by, "status"):
                 group_by = field
@@ -306,7 +332,8 @@ class TaskboardModule(Component):
             else:
                 get_f = self._get_standard_data_
 
-        ticket_data = get_f(req, milestone, group_by, results, self.visible_fields)
+        ticket_data = get_f(req, milestone, group_by, results, 
+                            self.valid_display_field_names)
         return self._formatted_data(ticket_data)
 
     def _get_standard_data_(self, req, milestone, field, results, fields):
