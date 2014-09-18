@@ -193,6 +193,7 @@ class TaskboardModule(Component):
         session_attribute table is updated and a JSON repsonse returned."""
 
         data = {}
+        status_code = 422
         default_milestone = req.args.get('milestone')
         default_group = req.args.get('group')
         default_fields = req.args.get('field')
@@ -203,17 +204,17 @@ class TaskboardModule(Component):
             try:
                 Milestone(self.env, default_milestone)
             except ResourceNotFound:
-                data['taskboard_default_updated'] = False
+                data['invalid_milestone'] = default_milestone
 
             allowed_fields = self.visible_fields + [f['name'] for f in self.valid_fields]
             display_fields = default_fields.split(',')
             for f in chain([default_group], display_fields):
                 if f not in allowed_fields:
-                    data['taskboard_default_updated'] = False
+                    data['invalid_field'] = f
                     break
 
             if default_view not in ['condensed', 'expanded']:
-                data['taskboard_default_updated'] = False
+                data['invalid_view'] = default_view
 
             if not data:
                 req.session.update({
@@ -223,12 +224,9 @@ class TaskboardModule(Component):
                     'taskboard_user_default_view': default_view
                 })
                 req.session.save()
-                data['taskboard_default_updated'] = True
+                status_code = 200
 
-        else:
-            data['taskboard_default_updated'] = False
-
-        req.send(to_json(data), 'text/json')
+        req.send(to_json(data), 'text/json', status=status_code)
 
     def _get_display_fields(self, req, default_query=False):
         """Determines which fields to show inside each ticket node.
