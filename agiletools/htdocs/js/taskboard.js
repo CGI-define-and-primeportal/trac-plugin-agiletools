@@ -144,6 +144,14 @@
     $("#set-default-query").on("click", function(e){
       if (!$(this).hasClass('disabled')) {
 
+        // DOM elements we need to replicate a bootstrap alert box
+        var $alert_wrapper = $("<div/>").addClass("cf alert alert-dismissable individual");
+        var $alert_icon = $("<i/>").addClass("icon-info-sign");
+        var $alert_text = $("<div/>").css({"display": "inline", "padding": "10px"})
+        var $alert_button = $("<button/>").addClass("close btn btn-mini")
+                                          .attr({"type": "button", "data-dismiss": "alert"})
+                                          .prepend(($("<i/>").addClass("icon-remove")));
+
         // set milestone and group values in form
         $("#default-query-form input[name='milestone']").val(milestone);
         $("#default-query-form input[name='group']").val(group);
@@ -158,26 +166,25 @@
           url: window.tracBaseUrl + 'taskboard/set-default-query',
           data: $("#default-query-form").serialize(),
           success: function() {
-              // try and replicate a bootstrap alert box
-              $("#content").prepend('<div class="cf alert alert-success alert-dismissable individual">\
-                    <i class="icon-info-sign"></i>\
-                    <div style="display:inline; padding: 10px"> Default query saved </div>\
-                    <button type="button" class="close btn btn-mini" data-dismiss="alert">\
-                      <i class="icon-remove"></i>\
-                    </button>\
-                  </div>')
-              // disable the set default button
-              $("#set-default-query").addClass("disabled");
+
+            $alert_wrapper.addClass("alert-success");
+            $alert_text.text("Default query saved");
+            $alert_wrapper.append($alert_icon)
+                          .append($alert_text)
+                          .append($alert_button);
+
+            $("#content").prepend($alert_wrapper);
+            $("#set-default-query").addClass("disabled");
           },
           error: function() {
-            // try and replicate a bootstrap alert box
-            $("#content").prepend('<div class="cf alert alert-danger alert-dismissable individual">\
-                    <i class="icon-info-sign"></i>\
-                    <div style="display:inline; padding: 10px"> Unable to save default query </div>\
-                    <button type="button" class="close btn btn-mini" data-dismiss="alert">\
-                      <i class="icon-remove"></i>\
-                    </button>\
-                  </div>')
+
+            $alert_wrapper.addClass("alert-danger");
+            $alert_text.text("Unable to save query saved");
+            $alert_wrapper.append($alert_icon)
+                          .append($alert_text)
+                          .append($alert_button);
+
+            $("#content").prepend($alert_wrapper);
           }
         })
       }
