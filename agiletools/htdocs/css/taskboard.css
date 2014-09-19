@@ -301,6 +301,10 @@ body.fullscreen #taskboard-controls {
   position: relative;
 }
 
+.fullscreen #taskboard-action-wrapper {
+  position: static;
+}
+
 #mods-display-fields {
   position: absolute;
 }
