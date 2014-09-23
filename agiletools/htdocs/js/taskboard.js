@@ -1021,12 +1021,6 @@
 
       this.$elBody = $("<td class='tickets'></td>");
 
-      for(ticketId in this.ticketData) {
-        if(this.ticketData.hasOwnProperty(ticketId)) {
-          this.taskboard.tickets[ticketId] = new Ticket(this, ticketId, this.ticketData[ticketId]);
-        }
-      }
-
       this.$elBody.data("_self", this);
      
       // we need to add an extra div, as table cells take up the height of 
@@ -1040,7 +1034,18 @@
         this.$elBody.append(ticket_wrapper);
       }
 
+      // make the tickets-wrap element available later
+      this.$elWrapper = this.$elBody.find(".tickets-wrap")
+
+      for(ticketId in this.ticketData) {
+        if(this.ticketData.hasOwnProperty(ticketId)) {
+          this.taskboard.tickets[ticketId] = new Ticket(this, ticketId, this.ticketData[ticketId]);
+        }
+      }
+
       $("tbody tr", this.taskboard.$el).append(this.$elBody);
+
+
     },
 
     /**
@@ -1119,18 +1124,19 @@
      * @param {Ticket} ticket
      */
     drop_in_place: function(ticket) {
-      var $ticketsInContainer = $(".ticket", this.$elBody), pos;
+
+      var $ticketsInContainer = $(".ticket", this.$elWrapper), pos;
 
       // No tickets in container
       if(!$ticketsInContainer.length) {
-        ticket.$el.appendTo(this.$elBody);
+        ticket.$el.appendTo(this.$elWrapper);
       }
       else {
         pos = this._calculate_new_position(ticket);
 
         // If no position to insert, append to container
         if(pos == -1) {
-          ticket.$el.appendTo(this.$elBody);
+          ticket.$el.appendTo(this.$elWrapper);
         }
 
         // Else, insert before the correct ticket
