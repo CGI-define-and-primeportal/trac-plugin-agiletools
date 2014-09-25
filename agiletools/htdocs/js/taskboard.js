@@ -1243,9 +1243,10 @@
                       "class='title unselectable tooltipped-above'>#" + this.id + ": <span></span></a>");
 
       for(i = 0; i < statsLength; i ++) {
-        this.$el.append("<div class='stat stat-" + this.statFields[i] + " unselectable'>" +
-                         "<i class='icon-" + this.statFields[i] + "'></i> <span></span>" +
-                       "</div>");
+        this.$el.append("<div class='stat stat-" + this.statFields[i] + 
+                        " unselectable tooltipped' title='" + this.statFields[i] +"'>" +
+                        "<i class='icon-" + this.statFields[i] + "'></i> <span></span>" +
+                        "</div>");
       }
 
       this.update_el();
