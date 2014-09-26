@@ -1243,10 +1243,13 @@
                       "class='title unselectable tooltipped-above'>#" + this.id + ": <span></span></a>");
 
       for(i = 0; i < statsLength; i ++) {
-        this.$el.append("<div class='stat stat-" + this.statFields[i] + 
-                        " unselectable tooltipped' title='" + this.statFields[i] +"'>" +
-                        "<i class='icon-" + this.statFields[i] + "'></i> <span></span>" +
-                        "</div>");
+        // we already show the summary in the ticket node header
+        if ($.inArray(this.statFields[i], ["summary"]) < 0) {
+          this.$el.append("<div class='stat stat-" + this.statFields[i] + 
+                          " unselectable tooltipped' title='" + this.statFields[i] +"'>" +
+                          "<i class='icon-" + this.statFields[i] + "'></i> <span></span>" +
+                          "</div>");
+        }
       }
 
       this.update_el();

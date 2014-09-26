@@ -165,7 +165,8 @@ class TaskboardModule(Component):
                     'milestone_not_found': milestone_not_found,
                     'current_milestone': milestone,
                     'group_by_fields': self.valid_grouping_fields,
-                    'display_fields': self.valid_display_fields,
+                    'display_fields': [f for f in self.valid_display_fields 
+                                         if f['name'] not in ('summary', 'type')],
                     'cur_display_fields': cols,
                     'condensed': self._show_condensed_view(req, user_saved_query)
                 })
@@ -192,7 +193,7 @@ class TaskboardModule(Component):
         defaults to the first seven colums - see get_default_columns().
         """
 
-        # make sure that we get the ticket summary
+        # make sure that we get the ticket summary and type
         if columns:
             for f in ('summary', 'type'):
                 if f not in columns:
