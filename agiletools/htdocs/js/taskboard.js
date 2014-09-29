@@ -1577,7 +1577,7 @@
     $("#taskboard-query select, #tb-milestones-select").on("change", function() {
       $(this).parent().submit();
     });
-    $("#update-taskboard").on("click", function() {
+    $("#btn-update-taskboard").on("click", function() {
       $("#taskboard-query").submit();
     });
   }

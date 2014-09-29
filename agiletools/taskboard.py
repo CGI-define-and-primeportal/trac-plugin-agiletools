@@ -181,10 +181,6 @@ class TaskboardModule(Component):
                                        _(" Set as default"),
                                        id_='set-default-query',
                                        title=_("Make this your default query")))
-                add_ctxtnav(req, tag.a(tag.i(class_='icon-refresh'),
-                                       _(" Update"),
-                                       id_='update-taskboard',
-                                       title=_("Apply filters")))
                 return "taskboard.html", data, None
 
     def _get_permitted_tickets(self, req, constraints=None, columns=None):
