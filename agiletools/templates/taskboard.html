@@ -21,14 +21,7 @@
               ${field.label}
             </option>
           </select>
-          <div id="mods-display-fields">
-            <py:for each="field in display_fields">
-              <label> <input type="checkbox" name="field" value="$field.name"
-                checked="${any([(value == field.name) for value in cur_display_fields])
-                                              and 'checked' or None}" />
-              ${field.label} </label>
-            </py:for>
-          </div>
+          <xi:include href="column_filter.html" />
         </form>
         <div id="taskboard-controls" class="hidden inline-block">
           <div id="btn-stat-fields" class="btn tooltipped" title="Filter ticket fields">
@@ -74,7 +67,7 @@
       <form id="default-query-form" class="hidden" action="" method="post">
         <input type="text" name="milestone" value=""/>
         <input type="text" name="group" value=""/>
-        <input type="text" name="field" value=""/>
+        <input type="text" name="col" value=""/>
         <input type="text" name="view" value=""/>
       </form>
     </div>

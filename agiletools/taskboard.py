@@ -165,9 +165,9 @@ class TaskboardModule(Component):
                     'milestone_not_found': milestone_not_found,
                     'current_milestone': milestone,
                     'group_by_fields': self.valid_grouping_fields,
-                    'display_fields': [f for f in self.valid_display_fields 
-                                         if f['name'] not in ('summary', 'type')],
-                    'cur_display_fields': cols,
+                    'fields': dict((f['name'], f) for f in self.valid_display_fields),
+                    'all_columns': [f['name'] for f in self._sorted_columns()],
+                    'col': cols,
                     'condensed': self._show_condensed_view(req, user_saved_query)
                 })
 
@@ -219,7 +219,7 @@ class TaskboardModule(Component):
         status_code = 422
         default_milestone = req.args.get('milestone')
         default_group = req.args.get('group')
-        default_fields = req.args.get('field')
+        default_fields = req.args.get('col')
         default_view = req.args.get('view')
 
         if all([default_milestone, default_group, default_fields, default_view]):
@@ -266,8 +266,8 @@ class TaskboardModule(Component):
             except KeyError:
                 pass
 
-        if 'field' in req.args:
-            display_fields = req.args['field']
+        if 'col' in req.args:
+            display_fields = req.args['col']
             # if there is only one stats filter value 
             # we need to place it into an iterable
             if isinstance(display_fields, basestring):
@@ -585,6 +585,18 @@ class TaskboardModule(Component):
 
     def _save_error(self, req, error):
         return {'error': error}
+
+    def _sorted_columns(self, field='label'):
+        """
+        Returns a iterable of ticket fields sorted by a specified field.
+
+        This does not include the summary and type, as we do not want users 
+        to select/unselect these fields, as we always require them inside the 
+        ticket node.
+        """
+        return sorted([f for f in self.valid_display_fields 
+                    if f['name'] not in ('summary', 'type')],
+                    key=lambda f: f.get(field))
 
     # ITemplateProvider methods
     def get_htdocs_dirs(self):

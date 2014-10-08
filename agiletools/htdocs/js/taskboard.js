@@ -156,8 +156,8 @@
         $("#default-query-form input[name='milestone']").val(milestone);
         $("#default-query-form input[name='group']").val(group);
         // find the checked inputs in the display fields node
-        var fields = $("#mods-display-fields input:checked").map(function(i,el){return el.value;}).get()
-        $("#default-query-form input[name='field']").val(fields)
+        var col = $("#mods-columns input:checked").map(function(i,el){return el.value;}).get()
+        $("#default-query-form input[name='col']").val(col);
         var view = $("#content").hasClass("view-condensed") ? "condensed" : "expanded";
         $("#default-query-form input[name='view']").val(view)
 
@@ -1588,14 +1588,14 @@
    */
   function event_toggle_stat_fields() {
 
-    $("#mods-display-fields").toggle();
+    $("#mods-columns").toggle();
 
     // it would be better to use a class which adds margin-top and then 
     // toggle that class, but as the value for this property is 
     // computed at run-time I've opted for this approach
-    if ($("#mods-display-fields").is(":visible")) {
+    if ($("#mods-columns").is(":visible")) {
       $("#taskboard").css("margin-top", 
-        ($("#mods-display-fields").outerHeight() + 20).toString() + "px");
+        ($("#mods-columns").outerHeight() + 20).toString() + "px");
     } else {
       $("#taskboard").css("margin-top", "10px");
     }

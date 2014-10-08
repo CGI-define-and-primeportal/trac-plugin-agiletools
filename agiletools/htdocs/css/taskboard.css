@@ -305,11 +305,11 @@ body.fullscreen #taskboard-controls {
   position: static;
 }
 
-#mods-display-fields {
+#mods-columns {
   position: absolute;
 }
 
-#mods-display-fields label {
+#mods-columns label {
   display: inline-block;
   padding: 0 50px 10px 0;
   width: 205px;
