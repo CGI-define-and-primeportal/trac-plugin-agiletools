@@ -138,6 +138,9 @@ class TaskboardModule(Component):
             cols = self._get_display_fields(req, user_saved_query)
             tickets = self._get_permitted_tickets(req, constraints=constr, 
                                                   columns=cols)
+            sorted_cols = sorted([f for f in self.valid_display_fields
+                    if f['name'] not in ('summary', 'type')],
+                    key=lambda f: f.get('label'))
 
             if tickets:
                 s_data = self.get_ticket_data(req, milestone, group_by, tickets)
@@ -166,7 +169,7 @@ class TaskboardModule(Component):
                     'current_milestone': milestone,
                     'group_by_fields': self.valid_grouping_fields,
                     'fields': dict((f['name'], f) for f in self.valid_display_fields),
-                    'all_columns': [f['name'] for f in self._sorted_columns()],
+                    'all_columns': [f['name'] for f in sorted_cols],
                     'col': cols,
                     'condensed': self._show_condensed_view(req, user_saved_query)
                 })
@@ -585,18 +588,6 @@ class TaskboardModule(Component):
 
     def _save_error(self, req, error):
         return {'error': error}
-
-    def _sorted_columns(self, field='label'):
-        """
-        Returns a iterable of ticket fields sorted by a specified field.
-
-        This does not include the summary and type, as we do not want users 
-        to select/unselect these fields, as we always require them inside the 
-        ticket node.
-        """
-        return sorted([f for f in self.valid_display_fields 
-                    if f['name'] not in ('summary', 'type')],
-                    key=lambda f: f.get(field))
 
     # ITemplateProvider methods
     def get_htdocs_dirs(self):
