@@ -179,7 +179,7 @@
           error: function() {
 
             $alert_wrapper.addClass("alert-danger");
-            $alert_text.text("Unable to save query saved");
+            $alert_text.text("Unable to save default query");
             $alert_wrapper.append($alert_icon)
                           .append($alert_text)
                           .append($alert_button);
