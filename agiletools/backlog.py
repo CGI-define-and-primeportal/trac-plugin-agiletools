@@ -1,5 +1,8 @@
+import itertools
+
 from agiletools.api import AgileToolsSystem
 
+from genshi.core import Markup
 from trac.core import Component, implements, TracError
 from trac.db.api import with_transaction
 from trac.resource import ResourceNotFound
@@ -20,8 +23,10 @@ from logicaordertracker.controller import LogicaOrderController
 class BacklogModule(Component):
     implements(IRequestHandler, ITemplateProvider, IRequestFilter)
 
-    fields = ("summary", "type", "component", "priority", "priority_value", 
-              "changetime", "reporter", "remaininghours", "status")
+    safe_fields = frozenset(("priority_value", "changetime", "remaininghours"))
+    unsafe_fields = frozenset(("summary", "type", "component", "priority",
+                               "reporter", "status"))
+    all_fields = safe_fields | unsafe_fields
 
     #IRequestHandler methods
     def match_request(self, req):
@@ -204,9 +209,14 @@ class BacklogModule(Component):
         tickets = []
         for result in results:
             if result['status'] not in closed_statuses[result['type']]:
-                filtered_result = dict((k, v)
-                                   for k, v in result.iteritems()
-                                   if k in self.fields)
+                result_items = result.items()
+                safe_results = ((k, v) for k, v in result_items
+                                if k in self.safe_fields)
+                escaped_results = ((k, Markup.escape(v))
+                                   for k, v in result_items
+                                   if k in self.unsafe_fields)
+                filtered_result = dict(itertools.chain(safe_results,
+                                                       escaped_results))
 
                 if "remaininghours" in filtered_result:
                     try:
@@ -256,7 +266,7 @@ class BacklogModule(Component):
                 ticket.save_changes(req.authname, "", when=datetime.now(utc))
 
     def _get_permitted_tickets(self, req, constraints=None):
-        qry = Query(self.env, constraints=constraints, cols=self.fields, max=0)
+        qry = Query(self.env, constraints=constraints, cols=self.all_fields, max=0)
         return [ticket for ticket in qry.execute(req)
                 if 'TICKET_VIEW' in req.perm('ticket', ticket['id'])]
 
