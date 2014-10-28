@@ -70,7 +70,7 @@
 
         var $ticket = $(this).closest('.ticket'),
             ticket_id = $ticket.attr('id').replace('ticket-', ''),
-            ticket_summary = $ticket.find('a').text(),
+            ticket_summary = $ticket.find('a').html(),
             opt = {
               autoOpen: false,
               modal: true,
