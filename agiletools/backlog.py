@@ -1,9 +1,9 @@
 from agiletools.api import AgileToolsSystem
 
-from genshi.core import Markup
 from trac.core import Component, implements, TracError
 from trac.db.api import with_transaction
 from trac.resource import ResourceNotFound
+from trac.util.html import escape
 from trac.web import IRequestHandler, IRequestFilter
 from trac.web.chrome import (ITemplateProvider, add_script, add_stylesheet,
                              add_script_data)
@@ -207,10 +207,10 @@ class BacklogModule(Component):
         tickets = []
         # All fields should be escaped, but datetimes crash Markup.escape and
         # I can't think of a way to exploit them for javascript injection
-        escape = lambda v: v if type(v) == datetime else Markup.escape(v)
+        escape_nondatetime = lambda v: v if type(v) == datetime else escape(v)
         for result in results:
             if result['status'] not in closed_statuses[result['type']]:
-                filtered_result = dict((k, escape(v))
+                filtered_result = dict((k, escape_nondatetime(v))
                                        for k, v in result.iteritems()
                                        if k in self.fields)
 
