@@ -1568,8 +1568,7 @@
     var allOptions = {
           allowClear: false,
           width: "off",
-          containerCssClass: "block-phone",
-          escapeMarkup: function(m) { return m; }
+          containerCssClass: "block-phone"
         },
         milestones = $.extend({ "data": window.milestones }, allOptions);
 
