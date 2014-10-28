@@ -110,11 +110,13 @@
             container.addClass("select2-product-backlog");
           }
           if((object.is_backlog ? "" : object.id) in _this.milestones) {
-            return "<i class='icon-check'></i> " + object.text;
+            return $("<span><i class='icon-check'></i> </span>").append(
+		document.createTextNode(object.text))
           }
           else {
             container.toggleClass("select2-disabled", _this.length == 4);
-            return "<i class='icon-check-empty'></i> " + object.text;
+            return $("<span><i class='icon-check-empty'></i> </span>").append(
+		document.createTextNode(object.text))
           }
         }
       });
@@ -1190,18 +1192,15 @@
      * @memberof MilestoneTicket
      */
     draw: function() {
-      this.$container = $("<tr>" +
-        "<td class='priority' data-priority='" + this.tData.priority_value + "'></td>" +
-        "<td class='id'>#" + this.tData.id + "</td>" +
-        "<td class='type' title='Type: " + this.tData.type + "'>" +
-          this.tData.type.substring(0, 3) +
-        "</td>" +
-        "<td class='summary'>" +
-          "<a href='" + window.tracBaseUrl + "ticket/" + this.tData.id + "'>" +
-            this.tData.summary +
-          "</a>" +
-        "</td>" +
-      "</tr>");
+      var priority = $("<td/>").addClass('priority').attr('data-priority', this.tData.priority_value),
+          id = $("<td/>").addClass('id').text("#" + this.tData.id),
+          type = $("<td/>").addClass('type').attr('title', 'Type: ' + this.tData.type).text(
+            this.tData.type.substring(0, 3)),
+          summary = $("<td/>").addClass('summary').append(
+            $("<a/>").attr('href', window.tracBaseUrl + 'ticket/' + this.tData.id).text(
+              this.tData.summary));
+
+      this.$container = $("<tr/>").append(priority, id, type, summary);
 
       this.$hoursFeedback = $("<td class='hours' title='Estimated Remaining Hours'></td>").appendTo(this.$container);
       this.$hours          = $("<span>" + pretty_time(this.tData.hours) + "</span>").appendTo(this.$hoursFeedback);
