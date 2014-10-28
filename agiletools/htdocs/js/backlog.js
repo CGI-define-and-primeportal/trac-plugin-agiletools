@@ -110,11 +110,13 @@
             container.addClass("select2-product-backlog");
           }
           if((object.is_backlog ? "" : object.id) in _this.milestones) {
-            return "<i class='icon-check'></i> " + object.text;
+            return $("<span><i class='icon-check'></i> </span>").append(
+		document.createTextNode(object.text))
           }
           else {
             container.toggleClass("select2-disabled", _this.length == 4);
-            return "<i class='icon-check-empty'></i> " + object.text;
+            return $("<span><i class='icon-check-empty'></i> </span>").append(
+		document.createTextNode(object.text))
           }
         }
       });
