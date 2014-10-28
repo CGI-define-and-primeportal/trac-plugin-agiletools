@@ -3,7 +3,6 @@ from agiletools.api import AgileToolsSystem
 from trac.core import Component, implements, TracError
 from trac.db.api import with_transaction
 from trac.resource import ResourceNotFound
-from trac.util.html import escape
 from trac.web import IRequestHandler, IRequestFilter
 from trac.web.chrome import (ITemplateProvider, add_script, add_stylesheet,
                              add_script_data)
@@ -21,10 +20,8 @@ from logicaordertracker.controller import LogicaOrderController
 class BacklogModule(Component):
     implements(IRequestHandler, ITemplateProvider, IRequestFilter)
 
-
-    fields = frozenset(("summary", "type", "component", "priority",
-                        "priority_value", "changetime", "reporter",
-                        "remaininghours", "status"))
+    fields = ("summary", "type", "component", "priority", "priority_value", 
+              "changetime", "reporter", "remaininghours", "status")
 
     #IRequestHandler methods
     def match_request(self, req):
@@ -205,14 +202,11 @@ class BacklogModule(Component):
         # TODO calculate which statuses are closed using the query system
         # when it is able to handle this
         tickets = []
-        # All fields should be escaped, but datetimes crash Markup.escape and
-        # I can't think of a way to exploit them for javascript injection
-        escape_nondatetime = lambda v: v if type(v) == datetime else escape(v)
         for result in results:
             if result['status'] not in closed_statuses[result['type']]:
-                filtered_result = dict((k, escape_nondatetime(v))
-                                       for k, v in result.iteritems()
-                                       if k in self.fields)
+                filtered_result = dict((k, v)
+                                   for k, v in result.iteritems()
+                                   if k in self.fields)
 
                 if "remaininghours" in filtered_result:
                     try:
