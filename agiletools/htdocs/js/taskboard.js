@@ -1568,7 +1568,8 @@
     var allOptions = {
           allowClear: false,
           width: "off",
-          containerCssClass: "block-phone"
+          containerCssClass: "block-phone",
+          escapeMarkup: function(m) { return m; }
         },
         milestones = $.extend({ "data": window.milestones }, allOptions);
 
