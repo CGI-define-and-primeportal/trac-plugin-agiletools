@@ -1193,7 +1193,7 @@
      */
     draw: function() {
       var priority = $("<td/>").addClass('priority').attr('data-priority', this.tData.priority_value),
-          id = $("<td/>").addClass('id').text(this.tData.id),
+          id = $("<td/>").addClass('id').text("#" + this.tData.id),
           type = $("<td/>").addClass('type').attr('title', 'Type: ' + this.tData.type).text(
             this.tData.type.substring(0, 3)),
           summary = $("<td/>").addClass('summary').append(
