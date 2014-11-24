@@ -18,6 +18,8 @@ from logicaordertracker.controller import LogicaOrderController, Operation
 from pkg_resources import resource_filename
 from datetime import datetime
 from genshi.builder import tag
+from itertools import chain
+import json
 from trac.util.datefmt import to_utimestamp, utc
 import re
 
@@ -29,20 +31,41 @@ class TaskboardModule(Component):
     restricted_fields = ListOption("taskboard", "restricted_fields",
             default="statusgroup, workflow, resolution, type, milestone",
             doc="""fields that shouldn't be present
-            on the taskboard, separated by ',')"""
+            in the taskboard groupby option, separated by ',')"""
             )
     user_fields = ListOption("taskboard", "user_fields",
             default="owner, reporter, qualityassurancecontact",
             doc="""fields whose values represent users, separated by ',')"""
             )
+    default_display_fields = ListOption("taskboard", "display_fields",
+            default="type, owner, priority",
+            doc="""fields displayed inside ticket nodes on taskboard"""
+            )
 
     @property
-    def valid_fields(self):
+    def valid_grouping_fields(self):
         """All fields with discrete values which aren't in restricted list"""
         return [f for f in TicketSystem(self.env).get_ticket_fields()
                 if (f.get("type") in ("select", "radio")
                 or f.get("name") in self.user_fields)
                 and f.get("name") not in self.restricted_fields]
+
+    @property
+    def valid_grouping_field_names(self):
+        """Iterable of valid groupby field names"""
+        return [f['name'] for f in self.valid_grouping_fields]
+
+    @property
+    def valid_display_fields(self):
+        """All fields except time and userlist type fields"""
+        # we need text for effort and hours for totalhours etc
+        return [f for f in TicketSystem(self.env).get_ticket_fields()
+                  if f.get("type") not in ("time", "textarea")]
+
+    @property
+    def valid_display_field_names(self):
+        """Iterable of valid display field names"""
+        return [f['name'] for f in self.valid_display_fields]
 
     #IRequestHandler methods
     def match_request(self, req):
@@ -65,6 +88,8 @@ class TaskboardModule(Component):
 
         group_by = req.args.get("group", "status")
 
+        user_saved_query = False
+
         milestones = Milestone.select_names_select2(self.env, include_complete=False)
 
         # Try to find a user selected milestone in request - if not found 
@@ -85,6 +110,7 @@ class TaskboardModule(Component):
             if default_milestone:
                 milestone = default_milestone
                 group_by = req.session.get('taskboard_user_default_group')
+                user_saved_query = True
 
             # fall back to most imminent milestone by due date
             elif len(milestones["results"]):
@@ -108,12 +134,18 @@ class TaskboardModule(Component):
                 if from_iso and to_iso:
                     constr['changetime'] = [from_iso + ".." + to_iso]
 
-            # Get all tickets by milestone
-            tickets = self._get_permitted_tickets(req, constraints=constr)
+            # Get all tickets by milestone and specify ticket fields to retrieve
+            cols = self._get_display_fields(req, user_saved_query)
+            tickets = self._get_permitted_tickets(req, constraints=constr, 
+                                                  columns=cols)
+            sorted_cols = sorted([f for f in self.valid_display_fields
+                    if f['name'] not in ('summary', 'type')],
+                    key=lambda f: f.get('label'))
 
             if tickets:
                 s_data = self.get_ticket_data(req, milestone, group_by, tickets)
                 s_data['total_tickets'] = len(tickets)
+                s_data['display_fields'] = cols
                 data['cur_group'] = s_data['groupName']
             else:
                 s_data = {}
@@ -135,7 +167,11 @@ class TaskboardModule(Component):
                 data.update({
                     'milestone_not_found': milestone_not_found,
                     'current_milestone': milestone,
-                    'group_by_fields': self.valid_fields,
+                    'group_by_fields': self.valid_grouping_fields,
+                    'fields': dict((f['name'], f) for f in self.valid_display_fields),
+                    'all_columns': [f['name'] for f in sorted_cols],
+                    'col': cols,
+                    'condensed': self._show_condensed_view(req, user_saved_query)
                 })
 
                 add_script(req, 'agiletools/js/update_model.js')
@@ -150,8 +186,20 @@ class TaskboardModule(Component):
                                        title=_("Make this your default query")))
                 return "taskboard.html", data, None
 
-    def _get_permitted_tickets(self, req, constraints=None):
-        query = Query(self.env, constraints=constraints, max=0)
+    def _get_permitted_tickets(self, req, constraints=None, columns=None):
+        """
+        If we don't pass a list of column/field values, the Query module 
+        defaults to the first seven colums - see get_default_columns().
+        """
+
+        # make sure that we get the ticket summary and type
+        if columns:
+            for f in ('summary', 'type'):
+                if f not in columns:
+                    columns.append(f)
+
+        # what field data should we get
+        query = Query(self.env, constraints=constraints, max=0, cols=columns)
         return [ticket for ticket in query.execute(req)
                 if 'TICKET_VIEW' in req.perm('ticket', ticket['id'])]
 
@@ -167,26 +215,38 @@ class TaskboardModule(Component):
 
     def _set_default_query(self, req):
         """Processes a POST request to save a user based query on the task 
-        board. After validating the milestone and group_by values, the 
+        board. After validating the various values passed in req.args, the 
         session_attribute table is updated and a JSON repsonse returned."""
 
         data = {}
         default_milestone = req.args.get('milestone')
         default_group = req.args.get('group')
+        default_fields = req.args.get('col')
+        default_view = req.args.get('view')
 
-        if default_milestone and default_group:
+        if all([default_milestone, default_group, default_fields, default_view]):
 
             try:
                 Milestone(self.env, default_milestone)
             except ResourceNotFound:
                 data['taskboard_default_updated'] = False
 
-            if not default_group in [f['name'] for f in self.valid_fields]:
+            display_fields = default_fields.split(',')
+            for f in chain([default_group], display_fields):
+                if f not in self.valid_display_field_names:
+                    data['taskboard_default_updated'] = False
+                    break
+
+            if default_view not in ['condensed', 'expanded']:
                 data['taskboard_default_updated'] = False
 
             if not data:
-                req.session['taskboard_user_default_milestone'] = default_milestone
-                req.session['taskboard_user_default_group'] = default_group
+                req.session.update({
+                    'taskboard_user_default_milestone': default_milestone,
+                    'taskboard_user_default_group': default_group,
+                    'taskboard_user_default_fields': json.dumps(display_fields),
+                    'taskboard_user_default_view': default_view
+                })
                 req.session.save()
                 data['taskboard_default_updated'] = True
 
@@ -195,20 +255,70 @@ class TaskboardModule(Component):
 
         req.send(to_json(data), 'text/json')
 
+    def _get_display_fields(self, req, default_query=False):
+        """Determines which fields to show inside each ticket node.
+
+        First we check the request object for any custom parameters, 
+        otherwise we fall back to the default ListOption.
+
+        We validate the selected fields against the valid_display_field_name 
+        property.
+        """
+
+        if default_query:
+            try:
+                return json.loads(req.session['taskboard_user_default_fields'])
+            except KeyError:
+                pass
+
+        if 'col' in req.args:
+            display_fields = req.args['col']
+            # if there is only one stats filter value 
+            # we need to place it into an iterable
+            if isinstance(display_fields, basestring):
+                display_fields = [display_fields]
+        else:
+            display_fields = self.default_display_fields
+
+        return sorted([f for f in display_fields if f in self.valid_display_field_names])
+
+    def _show_condensed_view(self, req, default_query=False):
+        """Calculates if the task board should show a condensed view of tickets.
+
+        This could be explicit through the use of the 'view' parameter, 
+        or implicit through the submission of a new query which includes 
+        fields different from the default display fields. The user may also 
+        be using a default query, where this value is pre-determined.
+
+        By default the task board reverts to a condensed view.
+        """
+
+        if default_query:
+            view =  req.session.get('taskboard_user_default_view')
+            if view:
+                return view == 'condensed'
+        elif 'view' in req.args:
+            if req.args['view'] == 'condensed':
+                return True
+            if req.args['view'] == 'expanded':
+                return False
+        elif 'field' in req.args:
+            return set(self._get_display_fields(req)) == set(self.default_display_fields)
+        else:
+            return True
+
     def get_ticket_data(self, req, milestone, grouped_by, results):
         """Return formatted data into single object to be used as JSON.
 
         Checks for a valid field (or groups by status).
         Then looks for a custom method for field, else uses standard method.
         """
-        visible_fields = ("summary", "milestone", "type", "component", "status",
-                  "priority", "priority_value", "owner", "changetime")
 
         # Try to group tickets by a user-specified valid field
         # if the field doesn't exist, we fall back to grouping by status
         group_by = None
 
-        for field in self.valid_fields:
+        for field in self.valid_grouping_fields:
             name = field.get("name")
             if name in (grouped_by, "status"):
                 group_by = field
@@ -224,7 +334,8 @@ class TaskboardModule(Component):
             else:
                 get_f = self._get_standard_data_
 
-        ticket_data = get_f(req, milestone, group_by, results, visible_fields)
+        ticket_data = get_f(req, milestone, group_by, results, 
+                            self.valid_display_field_names)
         return self._formatted_data(ticket_data)
 
     def _get_standard_data_(self, req, milestone, field, results, fields):

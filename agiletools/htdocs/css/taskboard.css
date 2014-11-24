@@ -296,3 +296,21 @@ body.fullscreen #taskboard-controls {
   .fullscreen #taskboard .tickets-wrap { max-height: 830px; }
   #taskboard .tickets-wrap { max-height: 680px; }
 }
+
+#taskboard-action-wrapper {
+  position: relative;
+}
+
+.fullscreen #taskboard-action-wrapper {
+  position: static;
+}
+
+#mods-columns {
+  position: absolute;
+}
+
+#mods-columns label {
+  display: inline-block;
+  padding: 0 50px 10px 0;
+  width: 205px;
+}

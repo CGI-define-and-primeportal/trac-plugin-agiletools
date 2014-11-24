@@ -44,6 +44,7 @@
       }
 
       $("#taskboard-controls").addClass("visible");
+      $("#btn-stat-fields").on("click", event_toggle_stat_fields);
       $("#btn-switch-view").on("click", event_toggle_condensed);
       $("#btn-fullscreen").on("click", event_toggle_fullscreen);
     }
@@ -146,6 +147,11 @@
         // set milestone and group values in form
         $("#default-query-form input[name='milestone']").val(milestone);
         $("#default-query-form input[name='group']").val(group);
+        // find the checked inputs in the display fields node
+        var col = $("#mods-columns input:checked").map(function(i,el){return el.value;}).get()
+        $("#default-query-form input[name='col']").val(col);
+        var view = $("#content").hasClass("view-condensed") ? "condensed" : "expanded";
+        $("#default-query-form input[name='view']").val(view)
 
         $.ajax({
           type: 'POST',
@@ -667,7 +673,7 @@
           this._process_update_tickets(byUser, this.ticketData, data.tickets);
         }
 
-        // Processed ticket data, now refresh group's ticket counts in the UI
+        // Processed ticket data, now refreshO group's ticket counts in the UI
         this.update_ticket_counts();
       }
 
@@ -1229,16 +1235,20 @@
                       "class='title unselectable tooltipped-above'>#" + this.id + ": <span></span></a>");
 
       for(i = 0; i < statsLength; i ++) {
-        this.$el.append("<div class='stat stat-" + this.statFields[i] + " unselectable'>" +
-                         "<i class='icon-" + this.statFields[i] + "'></i> <span></span>" +
-                       "</div>");
+        // we already show the summary in the ticket node header
+        if ($.inArray(this.statFields[i], ["summary"]) < 0) {
+          this.$el.append("<div class='stat stat-" + this.statFields[i] + 
+                          " unselectable tooltipped' title='" + this.statFields[i] +"'>" +
+                          "<i class='icon-" + this.statFields[i] + "'></i> <span></span>" +
+                          "</div>");
+        }
       }
 
       this.update_el();
       this.group.drop_in_place(this);
     },
 
-    statFields: ["type", "owner", "priority", "milestone"],
+    statFields: window.display_fields,
 
     /**
      * Update the ticket's UI values
@@ -1559,6 +1569,29 @@
     $("#taskboard-query select, #tb-milestones-select").on("change", function() {
       $(this).parent().submit();
     });
+    $("#btn-update-taskboard").on("click", function() {
+      $("#taskboard-query").submit();
+    });
+  }
+
+
+  /**
+   * Toggle the visibility of the ticket field check button container.
+   */
+  function event_toggle_stat_fields() {
+
+    $("#mods-columns").toggle();
+
+    // it would be better to use a class which adds margin-top and then 
+    // toggle that class, but as the value for this property is 
+    // computed at run-time I've opted for this approach
+    if ($("#mods-columns").is(":visible")) {
+      $("#taskboard").css("margin-top", 
+        ($("#mods-columns").outerHeight() + 20).toString() + "px");
+    } else {
+      $("#taskboard").css("margin-top", "10px");
+    }
+
   }
 
   /**
