@@ -823,6 +823,7 @@
           ticket: ticket,
           group: newGroup
         });
+      $('.user-field').userField();
 
       $("select", this.$optDialog).select2({
         width: "off",
