@@ -480,7 +480,7 @@
         this.$container.attr("id", "product-backlog");
       }
 
-      this.$closeBtn = draw_button("remove", "Close milestone").addClass("right").prependTo(this.$top);
+      this.$closeBtn = draw_button("remove", "Remove milestone from display").addClass("right").prependTo(this.$top);
     },
 
     /**
