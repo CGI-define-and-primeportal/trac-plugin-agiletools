@@ -13,6 +13,7 @@ from trac.util.presentation import to_json
 from pkg_resources import resource_filename
 from datetime import datetime
 from trac.util.datefmt import to_utimestamp, utc
+from trac.web.href import Href
 from trac.web.session import DetachedSession
 
 from logicaordertracker.controller import LogicaOrderController
@@ -160,10 +161,16 @@ class BacklogModule(Component):
             milestones_flat = [milestone.name for milestone in
                                Milestone.select(self.env, include_completed=False, include_children=True)]
 
+            urls = {}
+            for milestone in milestones_flat:
+                urls[milestone] = req.href('taskboard', {'milestone': milestone})
+                print urls[milestone]
+            #import pdb; pdb.set_trace();
             script_data = { 
                 'milestones': milestones_select2,
                 'milestonesFlat': milestones_flat,
-                'backlogAdmin': req.perm.has_permission("BACKLOG_ADMIN")
+                'backlogAdmin': req.perm.has_permission("BACKLOG_ADMIN"),
+                'milestoneURLs': urls,
                 }
 
             add_script_data(req, script_data)
