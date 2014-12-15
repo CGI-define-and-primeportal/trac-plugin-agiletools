@@ -28,6 +28,8 @@
 }
 #set-groups-clear:hover { text-decoration: none; }
 #filtered-notification { margin: 8px 0 0; }
+#filtered-note .close { float: right; }
+.filtered-option { text-decoration: underline; }
 
 #taskboard {
   table-layout: fixed;
