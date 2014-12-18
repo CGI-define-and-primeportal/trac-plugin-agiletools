@@ -1080,6 +1080,13 @@
     filter_hide: function() {
       this.visible = false;
       this.$elHead.add(this.$elBody).addClass("hidden");
+
+      // IE8 hack to support thead and tbody auto resizing when a column is hidden.
+      // Taken from stackoverflow.com/q/2654103. If you are confused by 
+      // the use of setTimeout() recommend you read stackoverflow.com/q/779379
+      var taskboard = this.taskboard.$el;
+      taskboard.css("display", "inline-table");
+      window.setTimeout(function(){ taskboard.css("display", ""); }, 0);
     },
 
     /**
