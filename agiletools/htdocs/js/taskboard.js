@@ -1676,21 +1676,32 @@
    * When automatically filtered on page load, display a notice
    */
   function show_filter_msg($container) {
-    var $filterMsg = $("<div id='filtered-note' class='box-info large take-color pointer'>" +
+    var $filterMsg = $("<div id='filtered-note' class='box-info large take-color'>" +
                          "<i class='icon-info-sign'></i> " +
                          "The taskboard has been automatically filtered to show " +
-                         "only the group with the most results. Click to configure." +
+                         "only the group with the most results. Click the " +
+                         "<span class='filtered-option pointer'>filtered groups " +
+                         "option</span> to configure." +
+                         "<button type='button' class='close btn btn-mini'>" +
+                         "<i class='icon-remove'></i>" +
+                         "</button>" +
                        "</div>");
 
     $container.before($filterMsg);
 
-    $(document).one("click", function() {
+    $("#filtered-note .close").one("click", function() {
       $filterMsg.slideUp(function() {
         $filterMsg.remove();
       });
+    });
 
+    $(document).on("click", ".filtered-option", function() {
+      $filterMsg.slideUp(function() {
+        $filterMsg.remove();
+      });
       $("#btn-groups-filter").trigger("click");
     });
+
   }
 
   /**
