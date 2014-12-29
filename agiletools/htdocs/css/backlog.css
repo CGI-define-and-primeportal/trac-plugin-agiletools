@@ -199,7 +199,8 @@
 }
 #backlog .tickets .summary { width: 100%; }
 #backlog .tickets .summary a { color: #555; }
-#backlog .tickets .hours span {
+#backlog .tickets .hours span,
+#backlog .tickets .storypoints span {
   font-size: 85%;
   color: #888;
   white-space: nowrap;

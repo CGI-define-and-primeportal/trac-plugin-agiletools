@@ -417,6 +417,7 @@
       this.set_label();
 
       this.total_hours = 0;
+      this.total_storypoints = 0;
       this.length = 0;
       this.tickets = {};
       this.get_tickets(true);
@@ -565,6 +566,7 @@
      */
     _add_ticket_references: function(ticket) {
       this.total_hours += ticket.tData.hours;
+      this.total_storypoints += ticket.tData.effort;
       this.tickets[ticket.tData.id] = ticket;
       this.length ++;
     },
@@ -576,6 +578,7 @@
      */
     _remove_ticket_references: function(ticket) {
       this.total_hours -= ticket.tData.hours;
+      this.total_storypoints -= ticket.tData.effort;
       delete this.tickets[ticket.tData.id];
       this.length --;
     },
@@ -586,27 +589,30 @@
      */
     set_stats: function() {
       var selection = this.mpSelection || this.filterSelection || false,
-          hours, tickets, selectedId;
+          hours, tickets, storypoints, selectedId;
 
       this.$stats.removeClass("selection filtered");
 
       if(selection) {
-        hours = tickets = 0;
+        hours = tickets = storypoints = 0;
         this.$stats.addClass(this.mpSelection ? "selection" : "filtered");
 
         for(selectedId in selection) {
           if(selection.hasOwnProperty(selectedId)) {
             tickets ++;
             hours += selection[selectedId].tData.hours;
+            storypoints += selection[selectedId].tData.effort;
           }
         }
       }
       else {
         hours = this.total_hours;
         tickets = this.length;
+        storypoints = this.total_storypoints;
       }
       this.$stats.html(
         "<i class='icon-ticket'></i> " + tickets +
+        "<i class='margin-left-small icon-reorder'></i> " + storypoints +
         "<i class='margin-left-small icon-time'></i> " + pretty_time(hours)
       );
     },
@@ -1206,12 +1212,15 @@
 
       this.$container = $("<tr/>").append(priority, id, type, summary);
 
+      this.$pointsFeedback = $("<td class='storypoints' title='Story Points'></td>").appendTo(this.$container);
+      this.$storyPoints = $("<span>" + this.tData.effort + "p</span>").appendTo(this.$pointsFeedback);
+
       this.$hoursFeedback = $("<td class='hours' title='Estimated Remaining Hours'></td>").appendTo(this.$container);
       this.$hours          = $("<span>" + pretty_time(this.tData.hours) + "</span>").appendTo(this.$hoursFeedback);
       this.$feedback        = $("<i class='hidden'></i>").appendTo(this.$hoursFeedback);
 
       this.$container.appendTo(this.milestone.$tBody).data("_self", this);
-      $(".type, .hours", this.$container).tooltip({
+      $(".type, .hours, .storypoints", this.$container).tooltip({
         placement: "top",
         container: "body"
       });

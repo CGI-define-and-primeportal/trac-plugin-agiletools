@@ -21,7 +21,7 @@ class BacklogModule(Component):
     implements(IRequestHandler, ITemplateProvider, IRequestFilter)
 
     fields = ("summary", "type", "component", "priority", "priority_value", 
-              "changetime", "reporter", "remaininghours", "status")
+              "changetime", "reporter", "remaininghours", "status", "effort")
 
     #IRequestHandler methods
     def match_request(self, req):
@@ -217,6 +217,14 @@ class BacklogModule(Component):
                 else:
                     hours = 0
 
+                if "effort" in filtered_result:
+                    try:
+                        storypoints = float(filtered_result['effort'])
+                    except (ValueError, TypeError):
+                        storypoints = 0
+                else:
+                    storypoints = 0
+
                 reporter = filtered_result["reporter"]
                 session = DetachedSession(self.env, reporter)
 
@@ -224,6 +232,7 @@ class BacklogModule(Component):
                     'id': result['id'],
                     'position': ats.position(result['id']),
                     'hours': hours,
+                    'effort': storypoints,
                     'reporter': session.get('name', reporter),
                     'changetime': to_utimestamp(filtered_result['changetime'])
                     })
