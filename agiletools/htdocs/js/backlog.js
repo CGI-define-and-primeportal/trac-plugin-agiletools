@@ -463,7 +463,7 @@
         this.selection_unselected();
       }
 
-      this.$title     =   $("<a class='title' href='" + this.get_milestone_url() + "'></a>").appendTo(this.$top);
+      this.$title     =   $("<a class='title tooltipped' title='Roadmap' href='" + this.get_milestone_url() + "'></a>").appendTo(this.$top);
       this.$filter    = $("<input class='filter' type='text' />").appendTo(this.$container).valueLabel("Filter Tickets...");
 
       if(this.backlog.editable) {
