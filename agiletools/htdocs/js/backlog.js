@@ -492,6 +492,11 @@
       this.$title.text(this.name === "" ? "Product Backlog" : this.name);
     },
 
+    /**
+     * Get the URL to the milestone's page in the roadmap
+     * @memberof BacklogMilestone
+     * @returns {String}
+     */
     get_milestone_url: function() {
       return window.tracBaseUrl + "milestone/" + encodeURIComponent(this.name);
     },
