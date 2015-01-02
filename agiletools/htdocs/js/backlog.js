@@ -121,7 +121,7 @@
         }
       });
 
-      // See http://stackoverflow.com/a/17502602/1773904 
+      // See http://stackoverflow.com/a/17502602/1773904
       // for why we add the first-child class
       this.$container.sortable({
         axis: "x",
@@ -131,7 +131,7 @@
         helper: "clone",
         start: function() {
           $(":visible:first", "#backlog").addClass("first-child");
-        }, 
+        },
         change: function() {
           $("#backlog").children().removeClass("first-child")
                        .filter(":visible:first").addClass("first-child");
@@ -538,7 +538,7 @@
     /**
      * LiveUpdater's complete refresh method
      * @memberof BacklogMilestone
-     * @param {Boolean} removeFilter - Whether to remove 
+     * @param {Boolean} removeFilter - Whether to remove
      * @returns {Promise}
      */
     refresh: function(removeFilter) {
@@ -623,7 +623,7 @@
      */
     set_empty_message: function() {
       this.$tBody.html("<tr class='none ui-state-disabled'><td>No tickets</td></tr>");
-    }, 
+    },
 
     /**
      * Remove an empty message from the user interface
@@ -1296,7 +1296,7 @@
       var $next = this.$container.next(),
           $prev = this.$container.prev(),
           newParent = this.$container.parent().data("_self"),
-          data = { 
+          data = {
             "__FORM_TOKEN": window.formToken,
             "ticket": this.tData.id,
             "ts": this.tData.changetime
