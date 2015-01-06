@@ -413,6 +413,7 @@
     init: function(backlog, name) {
       this.backlog = backlog;
       this.name = name;
+      this.milestone_url = window.tracBaseUrl + "milestone/" + encodeURIComponent(this.name);
       this.draw();
       this.set_label();
 
@@ -463,7 +464,7 @@
         this.selection_unselected();
       }
 
-      this.$title     =   $("<a class='title tooltipped' title='Roadmap' href='" + this.get_milestone_url() + "'></a>").appendTo(this.$top);
+      this.$title     =   $("<a class='title tooltipped' title='View milestone details on roadmap' href='" + this.milestone_url + "'></a>").appendTo(this.$top);
       this.$filter    = $("<input class='filter' type='text' />").appendTo(this.$container).valueLabel("Filter Tickets...");
 
       if(this.backlog.editable) {
@@ -490,15 +491,6 @@
      */
     set_label: function() {
       this.$title.text(this.name === "" ? "Product Backlog" : this.name);
-    },
-
-    /**
-     * Get the URL to the milestone's page in the roadmap
-     * @memberof BacklogMilestone
-     * @returns {String}
-     */
-    get_milestone_url: function() {
-      return window.tracBaseUrl + "milestone/" + encodeURIComponent(this.name);
     },
 
     /**
