@@ -125,7 +125,7 @@
       // for why we add the first-child class
       this.$container.sortable({
         axis: "x",
-        handle: ".top .title",
+        handle: ".top",
         items: ">",
         tolerance: "pointer",
         helper: "clone",

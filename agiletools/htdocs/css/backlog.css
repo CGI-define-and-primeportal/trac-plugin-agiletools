@@ -31,7 +31,8 @@
   border-bottom:3px solid #AAA;
 }
 
-.top .title { cursor:move; }
+#backlog .top { cursor: move; }
+#backlog .top .title { cursor: pointer; }
 
 #backlog #product-backlog { 
   border-color: #AED7FF;
