@@ -422,6 +422,25 @@
     },
 
     /**
+     * Transform the milestone name using the appropriate logic to decide
+     * if a milestone should be referred to as 'Product Backlog', or by its 
+     * original name.
+     * @memberof Backlog
+     * @param {string} name - Name of milestone.
+     * @param {boolean} reverse - Should we reverse the logic (if name is 
+     * already Product Milestone, return the original milestone)
+     */
+    transform_milestone: function(name, reverse) {
+      // currently we use the psuedo milestone empty string for the backlog
+      if (reverse) {
+        return name === "Product Backlog" ? "" : name;
+      }
+      else {
+        return name === "" ? "Product Backlog" : name;
+      }
+    },
+
+    /**
      * Initialise all backlog events
      * @memberof Backlog
      */
@@ -541,7 +560,7 @@
      * @memberof BacklogMilestone
      */
     set_label: function() {
-      this.$title.text(this.name === "" ? "Product Backlog" : this.name);
+      this.$title.text(this.backlog.transform_milestone(this.name, false));
     },
 
     /**
@@ -1466,7 +1485,7 @@
           maxPosition = this.milestone.length,
           // we add 1 as the index is 0 indexed - but we don't show this in the UI
           currentPosition = $("tr", this.$container.parent()).index(this.$container) + 1,
-          currentMilestone = this.milestone.name === "" ? 'Product Backlog' : this.milestone.name;
+          currentMilestone = this.backlog.transform_milestone(this.milestone.name, false);
 
       $optionsDialog.find("label[for='desired-position']")
                     .text('Position (1-' + maxPosition + ")");
@@ -1505,7 +1524,7 @@
     manually_move_ticket: function(position, milestone) {
 
       var $moreOptions = this.backlog.$moreOptions,
-          milestone = (milestone === 'Product Backlog') ? "" : milestone;
+          milestone = this.backlog.transform_milestone(milestone, true);
 
       // show new milestone if it is hidden and get class
       if (!this.backlog.milestones[milestone]) {
