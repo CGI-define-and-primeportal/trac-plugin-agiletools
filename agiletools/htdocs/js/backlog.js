@@ -1457,7 +1457,7 @@
 
     /**
      * Open the 'More Options' ticket dialog, setting various dynamic options 
-       before initilization. Insde we use the HTML5 min, max and step 
+       before initilization. Inside we use the HTML5 min, max and step 
        attributes to provide some basic client side validation.
      * @memberof MilestoneTicket
      */
