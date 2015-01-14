@@ -1470,8 +1470,6 @@
 
       $optionsDialog.find("label[for='desired-position']")
                     .text('Position (1-' + maxPosition + ")");
-      $optionsDialog.find("option[value='" + currentMilestone + "']")
-                    .attr("selected", "selected");
       $optionsDialog.find("select").select2('val', currentMilestone);
       $optionsDialog.find("input[name='position']").attr({
         value: currentPosition,
