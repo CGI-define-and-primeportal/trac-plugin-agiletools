@@ -1582,7 +1582,7 @@
      */
     show_priority_error: function(position, max) {
       var $list = $("ul", this.backlog.$failDialog).html("");
-      $list.append("<li>Cannot move ticket to position " + position + "." +
+      $list.append("<li>Cannot move ticket to position " + position + ". " +
                   "You must specify a position between 1 and " + max + ".</li>");
       this.backlog.$failDialog.dialog("open");
     }
