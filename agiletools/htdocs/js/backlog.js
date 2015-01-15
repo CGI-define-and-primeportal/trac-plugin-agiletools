@@ -1494,9 +1494,14 @@
         title: "Move ticket " + this.tData.id,
         buttons: {
           Move: $.proxy(function() {
-            var position = $optionsDialog.find("input[name='position']").val() - 1,
+            var position = $optionsDialog.find("input[name='position']").val(),
                 milestone = $optionsDialog.find(":selected").val();
-            this.manually_move_ticket(position, milestone);
+            // jQuery returns an empty string when the number type input has a text value
+            if (position === "") {
+              this.show_input_error();
+            } else {
+              this.manually_move_ticket(position - 1, milestone);
+            }
           }, this),
           Close: function() {
             $(this).dialog("close");
@@ -1584,6 +1589,17 @@
       var $list = $("ul", this.backlog.$failDialog).html("");
       $list.append("<li>Cannot move ticket to position " + position + ". " +
                   "You must specify a position between 1 and " + max + ".</li>");
+      this.backlog.$failDialog.dialog("open");
+    },
+
+    /**
+     * Open the failDialog to inform user they must enter an integer into the 
+     * position input field.
+     * @memberof MilestoneTicket
+     */
+    show_input_error: function() {
+      var $list = $("ul", this.backlog.$failDialog).html("");
+      $list.append("<li>Please enter a number into the position field.</li>");
       this.backlog.$failDialog.dialog("open");
     }
 
