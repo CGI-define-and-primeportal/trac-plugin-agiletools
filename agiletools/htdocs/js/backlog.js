@@ -1493,6 +1493,9 @@
       $optionsDialog.dialog({
         title: "Move ticket " + this.tData.id,
         buttons: {
+          Cancel: function() {
+            $(this).dialog("close");
+          },
           Move: $.proxy(function() {
             var position = $optionsDialog.find("input[name='position']").val(),
                 milestone = $optionsDialog.find(":selected").val();
@@ -1502,10 +1505,7 @@
             } else {
               this.manually_move_ticket(position - 1, milestone);
             }
-          }, this),
-          Close: function() {
-            $(this).dialog("close");
-          }
+          }, this)
         }
       });
 
