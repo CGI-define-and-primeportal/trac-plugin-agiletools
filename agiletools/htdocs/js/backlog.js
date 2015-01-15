@@ -434,6 +434,16 @@
     },
 
     /**
+     * Removes jQuery UI tooltips from the window. We call this as a 
+     * work around to the problem of tooltips remaining open after an icon 
+     * is clicked in some browsers (IE8, Firefox 32 etc.)
+     * @memberof Backlog
+     */
+    remove_tooltips: function() {
+      $(".tooltip").remove();
+    },
+
+    /**
      * Initialise all backlog events
      * @memberof Backlog
      */
@@ -1480,6 +1490,8 @@
           currentPosition = $("tr", this.$container.parent()).index(this.$container) + 1,
           currentMilestone = this.backlog.transform_milestone(this.milestone.name);
 
+      this.backlog.remove_tooltips();
+
       $optionsDialog.find("label[for='desired-position']")
                     .text('Position (1-' + maxPosition + ")");
       $optionsDialog.find("select").select2('val', currentMilestone);
@@ -1520,6 +1532,8 @@
      * @param {string} milestone - Milestone name
      */
     manually_move_ticket: function(position, milestone) {
+
+      this.backlog.remove_tooltips();
 
       var $moreOptions = this.backlog.$moreOptions;
 
