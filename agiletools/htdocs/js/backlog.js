@@ -426,18 +426,11 @@
      * if a milestone should be referred to as 'Product Backlog', or by its 
      * original name.
      * @memberof Backlog
-     * @param {string} name - Name of milestone.
-     * @param {boolean} reverse - Should we reverse the logic (if name is 
-     * already Product Milestone, return the original milestone)
+     * @param {string} name - Name of milestone
      */
-    transform_milestone: function(name, reverse) {
+    transform_milestone: function(name) {
       // currently we use the psuedo milestone empty string for the backlog
-      if (reverse) {
-        return name === "Product Backlog" ? "" : name;
-      }
-      else {
-        return name === "" ? "Product Backlog" : name;
-      }
+      return name === "" ? "Product Backlog" : name;
     },
 
     /**
@@ -560,7 +553,7 @@
      * @memberof BacklogMilestone
      */
     set_label: function() {
-      this.$title.text(this.backlog.transform_milestone(this.name, false));
+      this.$title.text(this.backlog.transform_milestone(this.name));
     },
 
     /**
@@ -1485,7 +1478,7 @@
           maxPosition = this.milestone.length,
           // we add 1 as the index is 0 indexed - but we don't show this in the UI
           currentPosition = $("tr", this.$container.parent()).index(this.$container) + 1,
-          currentMilestone = this.backlog.transform_milestone(this.milestone.name, false);
+          currentMilestone = this.backlog.transform_milestone(this.milestone.name);
 
       $optionsDialog.find("label[for='desired-position']")
                     .text('Position (1-' + maxPosition + ")");
@@ -1502,7 +1495,7 @@
         buttons: {
           Move: $.proxy(function() {
             var position = $optionsDialog.find("input[name='position']").val() - 1,
-                milestone = $optionsDialog.find(":selected").text();
+                milestone = $optionsDialog.find(":selected").val();
             this.manually_move_ticket(position, milestone);
           }, this),
           Close: function() {
@@ -1523,8 +1516,7 @@
      */
     manually_move_ticket: function(position, milestone) {
 
-      var $moreOptions = this.backlog.$moreOptions,
-          milestone = this.backlog.transform_milestone(milestone, true);
+      var $moreOptions = this.backlog.$moreOptions;
 
       // show new milestone if it is hidden and get class
       if (!this.backlog.milestones[milestone]) {
