@@ -49,9 +49,9 @@
       var i;
 
       this.appendTo = appendTo;
+      this.milestoneLimit = 4;
       this.draw();
       this.length = 0;
-      this.milestoneLimit = 4;
       this.milestones = {};
       this.tickets = {};
       this.editable = editable || false;
