@@ -1279,7 +1279,7 @@
       this.$moveBottom = $("<i class='icon-double-angle-down'></i>").appendTo(this.$moveBottomOption);
 
       this.$moreOptions = $("<td class='more-options' title='Specify position and milestone'>").appendTo(this.$container);
-      this.$ticketOptions = $("<i class='icon-double-angle-right more-options'></i>").appendTo(this.$moreOptions);
+      this.$ticketOptions = $("<i class='fa fa-arrows-alt more-options'></i>").appendTo(this.$moreOptions);
 
       this.$pointsFeedback = $("<td class='storypoints' title='Story Points'></td>").appendTo(this.$container);
       this.$storyPoints = $("<span>" + this.tData.effort + "p</span>").appendTo(this.$pointsFeedback);
