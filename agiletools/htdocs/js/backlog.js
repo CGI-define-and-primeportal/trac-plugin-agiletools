@@ -1480,8 +1480,8 @@
           currentPosition = $("tr", this.$container.parent()).index(this.$container) + 1,
           currentMilestone = this.backlog.transform_milestone(this.milestone.name);
 
-    // We call this to remove visible tooltips which remain rendered 
-    // after clicking on an icon in some browsers (IE8, Firefox 32 etc.)
+      // We call this to remove visible tooltips which remain rendered 
+      // after clicking on an icon in some browsers (IE8, Firefox 32 etc.)
       remove_visible_tooltips();
 
       $optionsDialog.find("label[for='desired-position']")
