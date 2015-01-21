@@ -1548,6 +1548,9 @@
         var $tkt = $("tr", $newMilestone.$container).eq(position);
         if ((position == maxPosition) ||
             (currentMilestone === $newMilestone.name && currentPosition < position)) {
+          // when we move a ticket to a lower priority in the current milestone 
+          // we must insert after the ticket currently at this position because 
+          // the position of this ticket depenends on our ticket
           this.$container.insertAfter($tkt);
         }
         else {
