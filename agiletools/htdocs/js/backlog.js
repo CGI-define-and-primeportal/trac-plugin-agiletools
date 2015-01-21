@@ -1546,12 +1546,9 @@
       }
       else {
         var $tkt = $("tr", $newMilestone.$container).eq(position);
-        if (position == maxPosition) {
+        if ((position == maxPosition) ||
+            (currentMilestone === $newMilestone.name && currentPosition < position)) {
           this.$container.insertAfter($tkt);
-        }
-        else if (currentMilestone === $newMilestone.name &&
-                 currentPosition < position) {
-            this.$container.insertAfter($tkt);
         }
         else {
           this.$container.insertBefore($tkt);
