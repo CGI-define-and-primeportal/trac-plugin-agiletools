@@ -1529,7 +1529,9 @@
       // after clicking on an icon in some browsers (IE8, Firefox 32 etc.)
       remove_visible_tooltips();
 
-      var $moreOptions = this.backlog.$moreOptions;
+      var $moreOptions = this.backlog.$moreOptions,
+          currentPosition = $("tr", this.$container.parent()).index(this.$container),
+          currentMilestone = this.milestone.name;
 
       // show new milestone if it is hidden and get class
       if (!this.backlog.milestones[milestone]) {
@@ -1546,6 +1548,10 @@
         var $tkt = $("tr", $newMilestone.$container).eq(position);
         if (position == maxPosition) {
           this.$container.insertAfter($tkt);
+        }
+        else if (currentMilestone === $newMilestone.name &&
+                 currentPosition < position) {
+            this.$container.insertAfter($tkt);
         }
         else {
           this.$container.insertBefore($tkt);
