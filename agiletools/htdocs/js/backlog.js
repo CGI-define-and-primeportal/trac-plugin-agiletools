@@ -49,6 +49,7 @@
       var i;
 
       this.appendTo = appendTo;
+      this.milestoneLimit = 4;
       this.draw();
       this.length = 0;
       this.milestones = {};
@@ -121,6 +122,28 @@
         }
       });
 
+      this.$moreOptions = this.generate_more_options_markup();
+      this.$moreOptions.dialog({
+        modal: true,
+        autoOpen: false
+      });
+      this.$moreOptions.find("select").select2({
+        allowClear: false,
+        width: "off",
+        dropdownCssClass: "full-width",
+      });
+
+      this.$milestoneFailDialog = $("<div id='fail-milestone-dialog'>" +
+        "<span>Please remove a milestone from the display before " +
+        "opening another. We only display " + this.milestoneLimit +
+        " milestones on the backlog page at a time.</span>" +
+      "</div>");
+      this.$milestoneFailDialog.dialog({
+        modal: true,
+        autoOpen: false,
+        title: "Failed to show milestone"
+      });
+
       // See http://stackoverflow.com/a/17502602/1773904
       // for why we add the first-child class
       this.$container.sortable({
@@ -153,6 +176,31 @@
     },
 
     /**
+     * Returns HTML for the more options dialog - including a dynamically 
+       generated select list of milestone options.
+     * @memberof Backlog
+     */
+    generate_more_options_markup: function() {
+      var $select = $("<select/>");
+
+      // Product Backlog isn't included in milestonesFlat array
+      $select.append($("<option/>")
+            .attr("value", "")
+            .text("Product Backlog"));
+
+      $.each(window.milestonesFlat, function(i, v) {
+        $select.append($("<option/>").attr("value", v).text(v));
+      });
+
+      return $("<form id='more-options'>" +
+        "<label for='desired-milestone' class='full-width-label'>Milestone</label>" +
+        "<select id='desired-milestone' class='full-width' name='milestone'>" + $select.html() + "</select>" +
+        "<label for='desired-position' class='full-width-label'>Position</label>" +
+        "<input id='desired-position' class='full-width' type='number' name='position'>" +
+      "</form>");
+    },
+
+    /**
      * Toggle a milestone's visibility
      * @memberof Backlog
      * @param {string} name - The name of the milestone to show / hide
@@ -173,7 +221,7 @@
      * @param {Boolean} updateUrl - Whether to update the page's URL
      */
     add_milestone: function(name, updateUrl) {
-      if(this.length < 4) {
+      if(this.length < this.milestoneLimit) {
 
         // Only add a milestone block if a valid name is supplied
         if(name === "" || $.inArray(name, window.milestonesFlat) !== -1) {
@@ -182,6 +230,9 @@
           this.milestoneOrder.push(name);
           this.add_remove_milestone(updateUrl);
         }
+      }
+      else {
+        this.$milestoneFailDialog.dialog("open");
       }
     },
 
@@ -371,6 +422,18 @@
     },
 
     /**
+     * Transform the milestone name using the appropriate logic to decide
+     * if a milestone should be referred to as 'Product Backlog', or by its 
+     * original name.
+     * @memberof Backlog
+     * @param {string} name - Name of milestone
+     */
+    transform_milestone: function(name) {
+      // currently we use the psuedo milestone empty string for the backlog
+      return name === "" ? "Product Backlog" : name;
+    },
+
+    /**
      * Initialise all backlog events
      * @memberof Backlog
      */
@@ -490,7 +553,7 @@
      * @memberof BacklogMilestone
      */
     set_label: function() {
-      this.$title.text(this.name === "" ? "Product Backlog" : this.name);
+      this.$title.text(this.backlog.transform_milestone(this.name));
     },
 
     /**
@@ -1209,6 +1272,15 @@
 
       this.$container = $("<tr/>").append(priority, id, type, summary);
 
+      this.$moveTopOption = $("<td class='move-to-top' title='Position ticket at top of milestone'>").appendTo(this.$container);
+      this.$moveTop = $("<i class='icon-double-angle-up'></i>").appendTo(this.$moveTopOption);
+
+      this.$moveBottomOption = $("<td class='move-to-bottom' title='Position ticket at bottom of milestone'>").appendTo(this.$container);
+      this.$moveBottom = $("<i class='icon-double-angle-down'></i>").appendTo(this.$moveBottomOption);
+
+      this.$moreOptions = $("<td class='more-options' title='Specify position and milestone'>").appendTo(this.$container);
+      this.$ticketOptions = $("<i class='fa fa-arrows-alt more-options'></i>").appendTo(this.$moreOptions);
+
       this.$pointsFeedback = $("<td class='storypoints' title='Story Points'></td>").appendTo(this.$container);
       this.$storyPoints = $("<span>" + this.tData.effort + "p</span>").appendTo(this.$pointsFeedback);
 
@@ -1217,7 +1289,7 @@
       this.$feedback        = $("<i class='hidden'></i>").appendTo(this.$hoursFeedback);
 
       this.$container.appendTo(this.milestone.$tBody).data("_self", this);
-      $(".type, .hours, .storypoints", this.$container).tooltip({
+      $(".type, .hours, .storypoints, .move-to-top, .move-to-bottom, .more-options", this.$container).tooltip({
         placement: "top",
         container: "body"
       });
@@ -1366,6 +1438,13 @@
      */
     events: function() {
       this.$feedback.on("click", $.proxy(this.show_error_msg, this));
+      this.$moveTopOption.on("click", $.proxy(this.manually_move_ticket, this, 0, this.milestone.name));
+      this.$moveBottomOption.on("click", $.proxy(function(){
+        this.manually_move_ticket(this.milestone.length - 1, this.milestone.name);
+        }, this)
+      );
+      this.$moreOptions.on("click", $.proxy(this.show_more_options, this));
+      this.backlog.$moreOptions.off('change').on("change", "select", $.proxy(this.change_position_limits, this));
       this.$container.on("mousedown", function() {
         $("td", this).each(function() {
           $(this).width($(this).width());
@@ -1386,6 +1465,156 @@
       this.backlog._remove_ticket_references(this);
       this.milestone._remove_ticket_references(this);
       this.$container.remove();
+    },
+
+    /**
+     * Open the 'More Options' ticket dialog, setting various dynamic options 
+       before initilization. Inside we use the HTML5 min, max and step 
+       attributes to provide some basic client side validation.
+     * @memberof MilestoneTicket
+     */
+    show_more_options: function() {
+      var $optionsDialog = this.backlog.$moreOptions,
+          maxPosition = this.milestone.length,
+          // we add 1 as the index is 0 indexed - but we don't show this in the UI
+          currentPosition = $("tr", this.$container.parent()).index(this.$container) + 1,
+          currentMilestone = this.backlog.transform_milestone(this.milestone.name);
+
+      // We call this to remove visible tooltips which remain rendered 
+      // after clicking on an icon in some browsers (IE8, Firefox 32 etc.)
+      remove_visible_tooltips();
+
+      $optionsDialog.find("label[for='desired-position']")
+                    .text('Position (1-' + maxPosition + ")");
+      $optionsDialog.find("select").select2('val', currentMilestone);
+      $optionsDialog.find("input[name='position']").attr({
+        value: currentPosition,
+        step: 1,
+        min: 1,
+        max: maxPosition
+      });
+
+      $optionsDialog.dialog({
+        title: "Move ticket " + this.tData.id,
+        buttons: {
+          Cancel: function() {
+            $(this).dialog("close");
+          },
+          Move: $.proxy(function() {
+            var position = $optionsDialog.find("input[name='position']").val(),
+                milestone = $optionsDialog.find(":selected").val();
+            // jQuery returns an empty string when the number type input has a text value
+            if (position === "") {
+              this.show_input_error();
+            } else {
+              this.manually_move_ticket(position - 1, milestone);
+            }
+          }, this)
+        }
+      });
+
+      $optionsDialog.dialog('open');
+    },
+
+    /**
+     * Programatically sort the ticket order instead of using the drag and drop 
+     functionality provided via jQuery sortable.
+     * @memberof MilestoneTicket
+     * @param {number} position - Position in milestone
+     * @param {string} milestone - Milestone name
+     */
+    manually_move_ticket: function(position, milestone) {
+
+      // We call this to remove visible tooltips which remain rendered 
+      // after clicking on an icon in some browsers (IE8, Firefox 32 etc.)
+      remove_visible_tooltips();
+
+      var $moreOptions = this.backlog.$moreOptions,
+          currentPosition = $("tr", this.$container.parent()).index(this.$container),
+          currentMilestone = this.milestone.name;
+
+      // show new milestone if it is hidden and get class
+      if (!this.backlog.milestones[milestone]) {
+        this.backlog.add_milestone(milestone, true);
+      }
+      var $newMilestone = this.backlog.milestones[milestone],
+          maxPosition = $newMilestone.length -1;
+
+      if (position < 0 || position > maxPosition) {
+        $moreOptions.dialog("close");
+        this.show_priority_error(position + 1, $newMilestone.length);
+      }
+      else {
+        var $tkt = $("tr", $newMilestone.$container).eq(position);
+        if ((position == maxPosition) ||
+            (currentMilestone === $newMilestone.name && currentPosition < position)) {
+          // when we move a ticket to a lower priority in the current milestone 
+          // we must insert after the ticket currently at this position because 
+          // the position of this ticket depends on our ticket
+          this.$container.insertAfter($tkt);
+        }
+        else {
+          this.$container.insertBefore($tkt);
+        }
+        this.save_changes();
+      }
+      $moreOptions.dialog("close");
+    },
+
+    /**
+     * Changes the HTML5 max attribute for the desired position number 
+       input inside the more options dialog form. We set this after the 
+       promise provided by the XHR request has been returned - so we can 
+       accurately reflect the number of tickets per milestone in the UI.
+     * @memberof MilestoneTicket
+     * @private
+     */
+    change_position_limits: function(event) {
+      var milestoneName = event.val;
+
+      // for this to work the milestone must be displayed
+      if (!this.backlog.milestones[milestoneName]) {
+        this.backlog.add_milestone(milestoneName, true);
+      }
+
+      if(this.backlog.milestones[milestoneName]) {
+        var $milestone = this.backlog.milestones[milestoneName];
+        // wait for the deferred object to return a promise
+        $.when( $milestone.refresh(true) ).done(
+          $.proxy( function(){
+            this.backlog.$moreOptions.find("input[name='position']").attr({
+              max: $milestone.length,
+            });
+            this.backlog.$moreOptions.find("label[for='desired-position']")
+                                     .text('Position (1-' + $milestone.length + ")");
+          }, this)
+        );
+      }
+    },
+
+    /**
+     * Open the failDialog to inform user why the attempt to move a ticket failed.
+     * @memberof MilestoneTicket
+     * @private
+     * @param {number} position - The position a user tried to move the ticket to
+     * @param {number} max - The maximum position accepted
+     */
+    show_priority_error: function(position, max) {
+      var $list = $("ul", this.backlog.$failDialog).html("");
+      $list.append("<li>Cannot move ticket to position " + position + ". " +
+                  "You must specify a position between 1 and " + max + ".</li>");
+      this.backlog.$failDialog.dialog("open");
+    },
+
+    /**
+     * Open the failDialog to inform user they must enter an integer into the 
+     * position input field.
+     * @memberof MilestoneTicket
+     */
+    show_input_error: function() {
+      var $list = $("ul", this.backlog.$failDialog).html("");
+      $list.append("<li>Please enter a number into the position field.</li>");
+      this.backlog.$failDialog.dialog("open");
     }
 
   });
@@ -1442,6 +1671,14 @@
 
     return initials;
   }
+
+    /**
+     * Removes visible jQuery UI tooltips from the window. This does not 
+     * stop further tooltips being created.
+     */
+    function remove_visible_tooltips() {
+      $(".tooltip").remove();
+    }
 
   /*
    * Simple method to break down a query string into components

@@ -15,6 +15,18 @@
   color: #FFF;
 }
 
+#s2id_desired-milestone {
+  margin-bottom: 10px;
+}
+
+#desired-position {
+  border: 1px #aaa solid;
+  border-radius: 4px;
+  line-height: 28px;
+  height: 28px;
+  padding: 0 0 0 8px;
+}
+
 #backlog > div { 
   border:1px solid #DDD;
   border-radius:5px;
@@ -72,6 +84,20 @@
 #backlog .ticket-selection.hidden { display:none; }
 
 #backlog .ticket-selection .btn { margin-left: 5px; }
+
+#backlog .tickets tr .more-options i,
+#backlog .tickets tr .move-to-top i,
+#backlog .tickets tr .move-to-bottom i {
+  visibility: hidden;
+  color: #888;
+  cursor: pointer;
+}
+
+#backlog .tickets tr:hover .more-options i,
+#backlog .tickets tr:hover .move-to-top i,
+#backlog .tickets tr:hover .move-to-bottom i {
+  visibility: visible;
+}
 
 #backlog .top .hours { 
   border-radius:5px;
