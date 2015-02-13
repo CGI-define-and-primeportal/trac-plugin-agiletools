@@ -58,10 +58,10 @@
     // =============
 
     var $t_dialog = $("#ticket-dialog"),
-        $show_comments_markup = $('<p>').append('<i class="icon-angle-down"></i> Show comments \
-                                <i class="icon-angle-down"></i>'),
-        $hide_comments_markup = $('<p>').append('<i class="icon-angle-up"></i> Hide comments \
-                                <i class="icon-angle-up"></i>');
+        $show_comments_markup = $('<p>').append('<i class="fa fa-angle-down"></i> Show comments \
+                                <i class="fa fa-angle-down"></i>'),
+        $hide_comments_markup = $('<p>').append('<i class="fa fa-angle-up"></i> Hide comments \
+                                <i class="fa fa-angle-up"></i>');
 
     $("#taskboard").on('click', '.ticket', function(e){
 
@@ -98,7 +98,7 @@
         // show a loading spinner while we wait for the response
         $t_dialog.html("<div class='row-fluid'>\
           <i id='ticket-dialog-spinner' class='col-xs-12 ticket-dialog-spinner \
-            icon-spinner icon-spin icon-2x'></i>\
+            fa fa-spinner fa-spin fa-2x'></i>\
             <p id='ticket-dialog-text' class='col-xs-12'>Fetching ticket details</p>\
             </div>")
 
@@ -146,11 +146,11 @@
 
         // DOM elements we need to replicate a bootstrap alert box
         var $alert_wrapper = $("<div/>").addClass("cf alert alert-dismissable individual");
-        var $alert_icon = $("<i/>").addClass("icon-info-sign");
+        var $alert_icon = $("<i/>").addClass("fa fa-info-circle");
         var $alert_text = $("<div/>").css({"display": "inline", "padding": "10px"})
         var $alert_button = $("<button/>").addClass("close btn btn-mini")
                                           .attr({"type": "button", "data-dismiss": "alert"})
-                                          .prepend(($("<i/>").addClass("icon-remove")));
+                                          .prepend(($("<i/>").addClass("fa fa-times")));
 
         // set milestone and group values in form
         $("#default-query-form input[name='milestone']").val(milestone);
@@ -862,7 +862,7 @@
 
       if(notify) {
         this.$loadMsg = $("<div class='taskboard-refresh'>" +
-                          "<i class='icon-refresh icon-spin color-info'></i>" +
+                          "<i class='fa fa-refresh fa-spin color-info'></i>" +
                           "</div>").appendTo(this.$container);
       }
 
@@ -1254,7 +1254,7 @@
         if ($.inArray(this.statFields[i], ["summary"]) < 0) {
           this.$el.append("<div class='stat stat-" + this.statFields[i] + 
                           " unselectable tooltipped' title='" + this.statFields[i] +"'>" +
-                          "<i class='icon-" + this.statFields[i] + "'></i> <span></span>" +
+                          "<i class='fa fa-" + this.statFields[i] + "'></i> <span></span>" +
                           "</div>");
         }
       }
@@ -1289,7 +1289,7 @@
     set_events: function() {
       var _this = this;
 
-      $(".wait", this.$el).on("click", ".icon-exclamation-sign", function() {
+      $(".wait", this.$el).on("click", ".fa fa-exclamation-sign", function() {
         var $list = $("ul", _this.group.taskboard.$failDialog).html("");
 
         $.each(_this.errorInfo, function(i, msg) {
@@ -1520,7 +1520,7 @@
      * @memberof Ticket
      */
     freeze: function(fade) {
-      this.show_wait("icon-spinner icon-spin", fade, true);
+      this.show_wait("fa fa-spinner fa-spin", fade, true);
     },
 
     /**
@@ -1528,7 +1528,7 @@
      * @memberof Ticket
      */
     save_ok_feedback: function() {
-      this.set_wait_icon("icon-ok-sign color-success-light", 400);
+      this.set_wait_icon("fa fa-check-circle color-success-light", 400);
       this.hide_wait(400, 1400, true);
     },
 
@@ -1538,7 +1538,7 @@
      * @memberof Ticket
      */
     save_failed_feedback: function(why) {
-      this.set_wait_icon("icon-exclamation-sign color-warning-light", 400);
+      this.set_wait_icon("fa fa-exclamation-sign color-warning-light", 400);
       this.errorInfo = why;
     },
 
@@ -1548,7 +1548,7 @@
      * @memberof Ticket
      */
     external_update_feedback: function(is_original) {
-      this.show_wait("icon-refresh icon-spin color-info-light", 400, is_original);
+      this.show_wait("fa fa-refresh fa-spin color-info-light", 400, is_original);
       this.hide_wait(400, 1400, is_original);
     },
 
@@ -1614,7 +1614,7 @@
    */
   function event_toggle_condensed() {
     /*jshint validthis: true */
-    $("i", this).toggleClass("icon-th-large icon-th");
+    $("i", this).toggleClass("fa fa-th-large fa-th");
     $("#content").toggleClass("view-condensed");
   }
 
@@ -1623,7 +1623,7 @@
    */
   function event_toggle_fullscreen() {
     /*jshint validthis: true */
-    $("i", this).toggleClass("icon-fullscreen icon-resize-small");
+    $("i", this).toggleClass("fa fa-arrows-alt fa-compress");
     $("body").toggleClass("fullscreen");
   }
 
@@ -1684,13 +1684,13 @@
    */
   function show_filter_msg($container) {
     var $filterMsg = $("<div id='filtered-note' class='box-info large take-color'>" +
-                         "<i class='icon-info-sign'></i> " +
+                         "<i class='fa fa-info-circle'></i> " +
                          "The taskboard has been automatically filtered to show " +
                          "only the group with the most results. Click the " +
                          "<span class='filtered-option pointer'>filtered groups " +
                          "option</span> to configure." +
                          "<button type='button' class='close btn btn-mini'>" +
-                         "<i class='icon-remove'></i>" +
+                         "<i class='fa fa-times'></i>" +
                          "</button>" +
                        "</div>");
 
@@ -1736,7 +1736,7 @@
    */
   function show_no_ticket_msg($container) {
     var $msg = $("<div class='box-info large take-color'>" +
-                   "<h1><i class='icon-info-sign'></i> No Tickets Found</h1>" +
+                   "<h1><i class='fa fa-info-circle'></i> No Tickets Found</h1>" +
                  "</div");
 
     $container.before($msg);
