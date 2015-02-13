@@ -26,25 +26,25 @@
         <div id="taskboard-controls" class="hidden inline-block">
           <div py:if="cur_group == 'status'"
                id="btn-change-workflow" class="btn btn-primary tooltipped" title="Change workflow">
-            <i class="icon-random"></i>
+            <i class="fa fa-random"></i>
           </div>
           <div id="btn-groups-filter" class="btn tooltipped" title="Filter groups"
                data-class="popover-groups">
-            <i class="icon-eye-open"></i>
+            <i class="fa fa-eye"></i>
           </div>
           <div id="btn-switch-view" class="btn tooltipped" title="Switch view">
-            <i class="icon-th"></i>
+            <i class="fa fa-th"></i>
           </div>
           <div id="btn-stat-fields" class="btn tooltipped" title="Select ticket fields to display">
-            <i class="icon-align-left"></i>
+            <i class="fa fa-align-left"></i>
           </div>
           <div id="btn-fullscreen" class="btn tooltipped" title="Toggle fullscreen">
-            <i class="icon-fullscreen"></i>
+            <i class="fa fa-arrows-alt"></i>
           </div>
           <div id="popover-elements" class="hidden">
             <div id="popover-groups">
               <a id="set-groups-clear">
-                <i class="icon-remove"></i> Remove all
+                <i class="fa fa-times"></i> Remove all
               </a>
               <select id="set-groups-select" multiple="multiple"></select>
             </div>
@@ -54,12 +54,12 @@
             </div>
           </div>
           <div id="btn-update-taskboard" class="btn tooltipped" title="Show ticket fields">
-            <i class="icon-refresh"> Update</i>
+            <i class="fa fa-refresh"> Update</i>
           </div>
         </div>
       </div>
       <div py:if="milestone_not_found" class="box-info">
-        <i class="icon-info-sign"></i>
+        <i class="fa fa-info-circle"></i>
         The specified milestone could not be found. Showing the current milestone instead.
       </div>
       <div id="taskboard-container"></div>
