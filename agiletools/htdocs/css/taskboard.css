@@ -187,8 +187,8 @@
 
 #content.taskboard .wait div { display:block; }
 
-#content.taskboard .ticket .wait .icon-exclamation-sign,
-#content.taskboard .ticket .wait .icon-exclamation-sign:hover { 
+#content.taskboard .ticket .wait .fa-exclamation-circle,
+#content.taskboard .ticket .wait .fa-exclamation-circle:hover {
   color: #F2DEDE;
   cursor: pointer;
 }

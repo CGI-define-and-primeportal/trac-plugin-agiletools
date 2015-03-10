@@ -232,7 +232,7 @@
   color: #888;
   white-space: nowrap;
 }
-#backlog .tickets .hours i.icon-exclamation-sign { cursor: pointer; }
+#backlog .tickets .hours i.fa-exclamation-circle { cursor: pointer; }
 
 #backlog .tickets tbody > tr:nth-child(2n+2) td { background:#F5F5F5; }
 
