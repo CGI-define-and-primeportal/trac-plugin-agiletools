@@ -111,12 +111,12 @@
             container.addClass("select2-product-backlog");
           }
           if((object.is_backlog ? "" : object.id) in _this.milestones) {
-            return $("<span><i class='icon-check'></i> </span>").append(
+            return $("<span><i class='fa fa-check-square-o'></i> </span>").append(
 		document.createTextNode(object.text))
           }
           else {
             container.toggleClass("select2-disabled", _this.length == 4);
-            return $("<span><i class='icon-check-empty'></i> </span>").append(
+            return $("<span><i class='fa fa-square-o'></i> </span>").append(
 		document.createTextNode(object.text))
           }
         }
@@ -504,7 +504,7 @@
     draw: function() {
 
       function draw_button(icon, tooltip_title) {
-        return $("<div class='btn' title='"+ tooltip_title + "'><i class='icon-" + icon + "'></i></div>").tooltip({
+        return $("<div class='btn' title='"+ tooltip_title + "'><i class='fa fa-" + icon + "'></i></div>").tooltip({
           container: "body"
         });
       }
@@ -512,7 +512,7 @@
       this.$container = $("<div></div>").appendTo(this.backlog.$container).data("_self", this);
       this.$top       = $("<div class='top'></div>").appendTo(this.$container);
 
-      this.$stats     =   $("<div class='hours'><i class='icon-spin icon-spinner'></i></div>").appendTo(this.$top);
+      this.$stats     =   $("<div class='hours'><i class='fa fa-spin fa-spinner'></i></div>").appendTo(this.$top);
 
       if(this.backlog.editable) {
         this.$selectionControls = $("<div class='ticket-selection'>").appendTo(this.$top);
@@ -537,7 +537,7 @@
 
       this.$tktWrap   = $("<div class='tickets-wrap'></div>").appendTo(this.$container);
       this.$table       = $("<table class='tickets'></table>").appendTo(this.$tktWrap);
-      this.$tBody         =   $("<tbody><tr><td class='wait'><i class='icon-spin icon-spinner'></i></td></tr></tbody>").appendTo(this.$table);
+      this.$tBody         =   $("<tbody><tr><td class='wait'><i class='fa fa-spin fa-spinner'></i></td></tr></tbody>").appendTo(this.$table);
       this.$tBody.data("_self", this);
 
 
@@ -671,9 +671,9 @@
         storypoints = this.total_storypoints;
       }
       this.$stats.html(
-        "<i class='icon-ticket'></i> " + tickets +
-        "<i class='margin-left-small icon-reorder'></i> " + storypoints +
-        "<i class='margin-left-small icon-time'></i> " + pretty_time(hours)
+        "<i class='fa fa-ticket'></i> " + tickets +
+        "<i class='margin-left-small fa fa-bars'></i> " + storypoints +
+        "<i class='margin-left-small fa fa-clock-o'></i> " + pretty_time(hours)
       );
     },
 
@@ -1139,7 +1139,7 @@
      * @memberof BacklogMilestone
      */
     selection_selected: function() {
-      this.$selectionToggleBtn.html("<i class='icon-check'></i>")
+      this.$selectionToggleBtn.html("<i class='fa fa-check-square-o'></i>")
         .off("click")
         .on("click", $.proxy(this.multi_pick_stop, this))
         .attr("data-original-title", "Remove selection")
@@ -1152,7 +1152,7 @@
      */
     selection_unselected: function() {
       this.mp_manual = false;
-      this.$selectionToggleBtn.html("<i class='icon-check-empty'></i>")
+      this.$selectionToggleBtn.html("<i class='fa fa-square-o'></i>")
         .off("click")
         .on("click", $.proxy(this.multi_pick_all, this))
         .attr("data-original-title", "Select all")
@@ -1167,12 +1167,12 @@
       var $move = $("i", this.$moveTicketsBtn),
           ticketChangetimes, ticketIds, neighbour, selectedId, xhr, ticket;
 
-      if(!$move.hasClass("icon-spinner")) {
+      if(!$move.hasClass("fa-spinner")) {
         ticketChangetimes = [];
         ticketIds = [];
         neighbour = this.$container.next().data("_self");
 
-        $move.attr("class", "icon-spin icon-spinner");
+        $move.attr("class", "fa fa-spin fa-spinner");
 
         if(neighbour) {
           for(selectedId in this.mpSelection) {
@@ -1212,7 +1212,7 @@
       this.refresh(true);
 
       this.mp_running = false;
-      $move.attr("class", "icon-chevron-right hidden");
+      $move.attr("class", "fa fa-chevron-right hidden");
     },
 
     /**
@@ -1273,10 +1273,10 @@
       this.$container = $("<tr/>").append(priority, id, type, summary);
 
       this.$moveTopOption = $("<td class='move-to-top' title='Position ticket at top of milestone'>").appendTo(this.$container);
-      this.$moveTop = $("<i class='icon-double-angle-up'></i>").appendTo(this.$moveTopOption);
+      this.$moveTop = $("<i class='fa fa-angle-double-up'></i>").appendTo(this.$moveTopOption);
 
       this.$moveBottomOption = $("<td class='move-to-bottom' title='Position ticket at bottom of milestone'>").appendTo(this.$container);
-      this.$moveBottom = $("<i class='icon-double-angle-down'></i>").appendTo(this.$moveBottomOption);
+      this.$moveBottom = $("<i class='fa fa-angle-double-down'></i>").appendTo(this.$moveBottomOption);
 
       this.$moreOptions = $("<td class='more-options' title='Specify position and milestone'>").appendTo(this.$container);
       this.$ticketOptions = $("<i class='fa fa-arrows-alt more-options'></i>").appendTo(this.$moreOptions);
@@ -1301,7 +1301,7 @@
      */
     show_wait: function() {
       this.$hours.addClass("hidden");
-      this.$feedback.attr("class", "icon-spin icon-spinner");
+      this.$feedback.attr("class", "fa fa-spin fa-spinner");
     },
 
     /**
@@ -1324,7 +1324,7 @@
       this.$container.addClass("ui-state-disabled");
       tmpParent.refresh_sortables();
       this.$hours.addClass("hidden");
-      this.$feedback.attr("class", "icon-exclamation-sign color-warning");
+      this.$feedback.attr("class", "fa fa-exclamation-sign color-warning");
     },
 
     /**
@@ -1334,7 +1334,7 @@
     show_error_msg: function() {
       var i;
 
-      if(this.$feedback.hasClass("icon-exclamation-sign")) {
+      if(this.$feedback.hasClass("fa-exclamation-sign")) {
         this.backlog.$failDialog.dialog("open").data("_obj", this);
         var $list = $("ul", this.backlog.$failDialog).html("");
 
