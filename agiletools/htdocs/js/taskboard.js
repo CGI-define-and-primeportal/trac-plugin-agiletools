@@ -1254,7 +1254,7 @@
         if ($.inArray(this.statFields[i], ["summary"]) < 0) {
           this.$el.append("<div class='stat stat-" + this.statFields[i] + 
                           " unselectable tooltipped' title='" + this.statFields[i] +"'>" +
-                          "<i class='fa fa-" + this.statFields[i] + "'></i> <span></span>" +
+                          "<i class='fa x-fa-" + this.statFields[i] + "'></i> <span></span>" +
                           "</div>");
         }
       }
