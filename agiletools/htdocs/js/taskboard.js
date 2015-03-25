@@ -1254,7 +1254,7 @@
         if ($.inArray(this.statFields[i], ["summary"]) < 0) {
           this.$el.append("<div class='stat stat-" + this.statFields[i] + 
                           " unselectable tooltipped' title='" + this.statFields[i] +"'>" +
-                          "<i class='fa fa-" + this.statFields[i] + "'></i> <span></span>" +
+                          "<i class='fa x-fa-" + this.statFields[i] + "'></i> <span></span>" +
                           "</div>");
         }
       }
@@ -1614,7 +1614,7 @@
    */
   function event_toggle_condensed() {
     /*jshint validthis: true */
-    $("i", this).toggleClass("fa fa-th-large fa-th");
+    $("i", this).toggleClass("fa-th-large fa-th");
     $("#content").toggleClass("view-condensed");
   }
 
@@ -1623,7 +1623,7 @@
    */
   function event_toggle_fullscreen() {
     /*jshint validthis: true */
-    $("i", this).toggleClass("fa fa-arrows-alt fa-compress");
+    $("i", this).toggleClass("fa-arrows-alt fa-compress");
     $("body").toggleClass("fullscreen");
   }
 
