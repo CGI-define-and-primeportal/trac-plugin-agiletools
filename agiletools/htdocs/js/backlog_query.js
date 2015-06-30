@@ -18,34 +18,14 @@
 
     var formToken = $("#query input[name='__FORM_TOKEN']").val(),
         $tables = $("table", "#query-results"),
-        $handlePrototype = $("<td class='rearrange-handle'></td>"),
-        $allHandles = $(),
+        $allHandles = $("thead tr .rearrange-handle"),
         helpTooltip = true;
 
-    // Add handles to head and body
-    $("thead tr", $tables).prepend("<th class='rearrange-handle'></th>");
-    $("tbody tr", $tables).each(function() {
-      var $handle = $handlePrototype.clone().prependTo(this);
-      $allHandles = $allHandles.add($handle);
-    });
-
-    // Do some magic to make sure the table rows don't appear to change width
-    // when being sorted. Also, show a tooltip, but remove it after the first click
-    $allHandles.tooltip({
+    // Only show tooltip on first item, to avoid too much DOM manipulation
+    $allHandles.first().tooltip({
       title: "Reorder ticket",
       placement: "right",
       container: "body"
-    });
-
-    $allHandles.on("mousedown", function() {
-      $("td", $(this).parent()).each(function() {
-        $(this).width($(this).width());
-      });
-
-      if(helpTooltip) {
-        $allHandles.tooltip("destroy");
-        helpTooltip = false;
-      }
     });
 
     // Make the tables sortable
