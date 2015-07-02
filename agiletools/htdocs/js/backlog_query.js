@@ -39,11 +39,6 @@
       stop: function(e, ui) {
         var relativeDirection, $relative;
 
-        // Remove our assigned widths (from above) once we've finished sorting
-        $("td", ui.item).each(function() {
-          $(this).removeAttr("style");
-        });
-
         // If our ticket has changed it's position, save it
         if($("tr", this).index(ui.item) != ui.item.data("old_index")) {
           relativeDirection = "before";
