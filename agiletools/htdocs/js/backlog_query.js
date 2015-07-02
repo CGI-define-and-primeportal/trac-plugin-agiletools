@@ -36,7 +36,6 @@
 
     // Make the tables sortable
     $("tbody", $tables).sortable({
-      containment: "parent",
       handle: ".rearrange-handle",
       items: "tr:not(.aggregationrow)",
       start: function(e, ui) {
