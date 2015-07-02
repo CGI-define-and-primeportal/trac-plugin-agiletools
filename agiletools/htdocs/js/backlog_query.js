@@ -16,6 +16,12 @@
 
   $(document).ready(function() {
 
+    // TODO: This requires a patch to query_results.html to add
+    // <th class="rearrange-handle" py:if="query.order=='_dynamic'"></th> etc.
+    // Maybe we should have a fallback, which adds it in JavaScript?
+    // It's done in genshi instead for speed - the JavaScript was too slow
+    // for when there are 100's of rows.
+    
     var formToken = $("#query input[name='__FORM_TOKEN']").val(),
         $tables = $("table", "#query-results"),
         $allHandles = $("thead tr .rearrange-handle"),
