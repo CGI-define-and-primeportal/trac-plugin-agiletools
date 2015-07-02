@@ -32,6 +32,7 @@
     $("tbody", $tables).sortable({
       containment: "parent",
       handle: ".rearrange-handle",
+      items: "tr:not(.aggregationrow)",
       start: function(e, ui) {
         // Remember the last position so we don't try to save if unmoved
         ui.item.data("old_index", $("tr", this).index(ui.item));
