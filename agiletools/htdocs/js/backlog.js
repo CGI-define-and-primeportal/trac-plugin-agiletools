@@ -112,12 +112,12 @@
           }
           if((object.is_backlog ? "" : object.id) in _this.milestones) {
             return $("<span><i class='fa fa-check-square-o'></i> </span>").append(
-		document.createTextNode(object.text))
+              document.createTextNode(object.text))
           }
           else {
             container.toggleClass("select2-disabled", _this.length == 4);
             return $("<span><i class='fa fa-square-o'></i> </span>").append(
-		document.createTextNode(object.text))
+              document.createTextNode(object.text))
           }
         }
       });
