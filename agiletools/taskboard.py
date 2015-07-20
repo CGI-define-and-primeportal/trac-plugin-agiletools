@@ -192,16 +192,25 @@ class TaskboardModule(Component):
         defaults to the first seven colums - see get_default_columns().
         """
 
-        # make sure that we get the ticket summary and type
-        if columns:
-            for f in ('summary', 'type'):
-                if f not in columns:
-                    columns.append(f)
+        # make sure that we get certain ticket fields
+        if columns is None:
+            columns = []
+        for f in ('summary', 'type', 'remaininghours', 'effort'):
+            if f not in columns:
+                columns.append(f)
 
         # what field data should we get
         query = Query(self.env, constraints=constraints, max=0, cols=columns)
-        return [ticket for ticket in query.execute(req)
-                if 'TICKET_VIEW' in req.perm('ticket', ticket['id'])]
+        tickets = []
+        for ticket in query.execute(req):
+            if 'TICKET_VIEW' in req.perm('ticket', ticket['id']):
+                for k in ('effort', 'remaininghours'):
+                    try:
+                        ticket[k] = float(ticket[k])
+                    except KeyError:
+                        pass
+                tickets.append(ticket)
+        return tickets
 
     def all_other_changes(self, req, changed_in_scope, from_to):
         """Return tuple of ticket IDs changed outside of query scope.
@@ -497,7 +506,6 @@ class TaskboardModule(Component):
             formatted['userData'] = user_data
         else:
             (group_name, tickets, groups) = data
-
         formatted.update({
             'tickets': tickets,
             'groupName': group_name,
@@ -535,8 +543,16 @@ class TaskboardModule(Component):
                     save_f(req, ticket_id, req.args.get("action"))
 
                 # Retrieve new ticket information
-                query = Query(self.env, constraints={'id': [str(ticket_id)]})
+                query = Query(self.env,
+                              constraints={'id': [str(ticket_id)]},
+                              cols=['id', 'type', 'effort', 'remaininghours'])
                 results = query.execute(req)
+                req.perm('ticket', ticket_id).require('TICKET_VIEW')
+                for k in ('effort', 'remaininghours'):
+                    try:
+                        results[0][k] = float(results[0][k])
+                    except KeyError:
+                        pass
                 return self.get_ticket_data(req, milestone, field, results)
             except ValueError, e:
                 return self._save_error(req, list(e))

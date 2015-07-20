@@ -65,37 +65,28 @@
   border-radius:5px;
 }
 #taskboard th .group-count {
-  line-height: 18px;
-  height:18px;
+  border-radius:5px;
   font-size: 80%;
-  margin:2px 0 0 5px;
+  line-height: 21px;
+  height: 21px;
+  margin:0 5px 0 5px;
   padding:0 6px;
-  border:1px solid #BBB;
-  border-color: rgba(0, 0, 0, 0.15);
-  border-radius:100%;
-  background: -webkit-linear-gradient(top, #FFF 0%, #E6E6E6 100%);
-  background:         linear-gradient(to bottom, #FFF 0%, #E6E6E6 100%);
   float:right;
+  border:1px solid #CCC;
+  background: #FAFAFA;
+  overflow: hidden;
 }
-#taskboard th .group-count.case-warning  {
+#taskboard th .group-count.case-warning .tickets {
   color:#A94442;
-  background:#F2DEDE;
-  border-color:#E6C1C1;
 }
-#taskboard th .group-count.case-error  {
+#taskboard th .group-count.case-error .tickets  {
   color:#BD3904;
-  background:#ffcfb3;
-  border-color:#E6BAA1;
 }
-#taskboard th .group-count.case-primary  {
+#taskboard th .group-count.case-primary .tickets {
   color:#0066CC;
-  background:#DFEEFD;
-  border-color:#C9D6E4;
 }
-#taskboard th .group-count.case-success  {
+#taskboard th .group-count.case-success .tickets {
   color:#23932C;
-  background:#CEF5D1;
-  border-color:#B9DCBC;
 }
 
 #taskboard th .group-name {

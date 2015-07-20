@@ -970,7 +970,9 @@
       this.ticketData = ticketData;
 
       this.taskboard.groupCount ++;
-      this.ticketCount = 0;
+      this.ticketCount  = 0;
+      this.ticketHours  = 0;
+      this.ticketEffort = 0;
 
       this.maxCount = 0;
 
@@ -1006,7 +1008,13 @@
       }
 
       this.countClasses = "group-count hidden-phone";
-      this.$elHead.append("<div class='" + this.countClasses + "'></div>");
+      this.$elHead.append("<div class='" + this.countClasses + "'>" +
+			  "<i class='fa fa-ticket'></i> <span class='tickets'></span>" +
+			  "<i class='margin-left-small fa fa-bars'></i> <span class='effort'></span>" +
+			  "<i class='margin-left-small fa fa-clock-o'></i> <span class='hours'></span>" +
+			  "</div>");
+
+      
       this.$elHead.append("<div class='group-name'>" + this.get_visual_name() + "</div>");
       $("thead tr", this.taskboard.$el).append(this.$elHead);
     },
@@ -1182,7 +1190,8 @@
           outlier_amount = Math.abs(average - this.ticketCount) / average,
           outlier_case = "", count;
 
-      if(outlier_amount >= 1) outlier_case = "warning";
+      if (this.ticketCount == 0) outlier_case = "success";
+      else if(outlier_amount >= 1) outlier_case = "warning";
       else if(outlier_amount >= 2/3) outlier_case = "error";
       else if(outlier_amount >= 1/3) outlier_case = "primary";
       else outlier_case = "success";
@@ -1194,9 +1203,15 @@
         count = this.ticketCount;
       }
 
-      $(".group-count", this.$elHead).attr("class", this.countClasses)
-        .addClass("case-" + outlier_case)
+      $(".group-count", this.$elHead)
+	.attr("class", this.countClasses)
+	.addClass("case-" + outlier_case);
+      $(".group-count", this.$elHead).find("span.tickets")
         .text(count);
+      $(".group-count", this.$elHead).find("span.hours")
+        .text(this.ticketHours.toFixed(1));
+      $(".group-count", this.$elHead).find("span.effort")
+        .text(this.ticketEffort.toFixed(0));
     },
 
     /**
@@ -1233,6 +1248,8 @@
       this.set_events();
 
       this.group.ticketCount ++;
+      this.group.ticketHours += tData['remaininghours'];
+      this.group.ticketEffort += tData['effort'];
       this.group.taskboard.ticketCount ++;
     },
 
@@ -1327,13 +1344,18 @@
      * @param {Group} [newGroup] - the new group to which this ticket belongs
      */
     update: function(data, byUser, newGroup) {
+      var previous_tData = this.tData;
       this.tData = data;
       this.update_el();
 
       if(newGroup != this.group) {
         this.group.ticketCount --;
+	this.group.ticketEffort -= previous_tData['effort'];
+	this.group.ticketHours  -= previous_tData['remaininghours'];	
         this.group = newGroup;
         this.group.ticketCount ++;
+	this.group.ticketEffort += this.tData['effort'];
+	this.group.ticketHours  += this.tData['remaininghours'];	
 
         if(byUser) {
           this.save_ok_feedback();
@@ -1343,6 +1365,10 @@
         }
       }
       else {
+	this.group.ticketEffort -= previous_tData['effort'];
+	this.group.ticketHours  -= previous_tData['remaininghours'];	
+	this.group.ticketEffort += this.tData['effort'];
+	this.group.ticketHours  += this.tData['remaininghours'];	
         this.animate_move(false);
       }
     },
@@ -1561,9 +1587,10 @@
         $(this).remove();
       });
 
-      delete this.group.taskboard.tickets[this.id];
-      this.group.taskboard.ticketCount --;
       this.group.ticketCount --;
+      this.group.ticketEffort -= this.group.taskboard.tickets[this.id]['effort'];
+      this.group.ticketHours  -= this.group.taskboard.tickets[this.id]['remaininghours'];	
+      delete this.group.taskboard.tickets[this.id];
       this.group.taskboard.update_ticket_counts();
     }
   });
