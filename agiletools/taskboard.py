@@ -20,7 +20,7 @@ from datetime import datetime
 from genshi.builder import tag
 from itertools import chain
 import json
-from trac.util.datefmt import to_utimestamp, utc
+from trac.util.datefmt import to_utimestamp, utc, pretty_age
 import re
 
 from simplifiedpermissionsadminplugin.simplifiedpermissions import SimplifiedPermissions
@@ -60,7 +60,7 @@ class TaskboardModule(Component):
         """All fields except time and userlist type fields"""
         # we need text for effort and hours for totalhours etc
         return [f for f in TicketSystem(self.env).get_ticket_fields()
-                  if f.get("type") not in ("time", "textarea")]
+                  if f.get("type") != "textarea"]
 
     @property
     def valid_display_field_names(self):
@@ -359,7 +359,11 @@ class TaskboardModule(Component):
                                    for k, v in result.iteritems()
                                    if k in fields)
             filtered_result['position'] = ats.position(result['id'])
-            filtered_result['changetime'] = to_utimestamp(result['changetime'])
+            filtered_result['_changetime'] = to_utimestamp(result['changetime'])
+            # we use Trac's to_json() (through add_script_data), so
+            # we'll replace any types which can't be json serialised
+            for k, v in filtered_result.items():
+                if isinstance(v, datetime): filtered_result[k] = pretty_age(v)
             group_field_val = ticket.get_value_or_default(field["name"]) or ""
             tickets_json[group_field_val][result["id"]] = filtered_result
 
@@ -397,7 +401,11 @@ class TaskboardModule(Component):
                                    for k, v in result.iteritems()
                                    if k in fields)
             filtered_result['position'] = ats.position(result['id'])
-            filtered_result['changetime'] = to_utimestamp(result['changetime'])
+            filtered_result['_changetime'] = to_utimestamp(result['changetime'])
+            # we use Trac's to_json() (through add_script_data), so
+            # we'll replace any types which can't be json serialised
+            for k, v in filtered_result.items():
+                if isinstance(v, datetime): filtered_result[k] = pretty_age(v)
             group_field_val = ticket.get_value_or_default(field["name"]) or ""
             tickets_json[group_field_val][result["id"]] = filtered_result
 
@@ -437,7 +445,11 @@ class TaskboardModule(Component):
                             for k, v in r.iteritems()
                             if k in fields)
             filtered['position'] = ats.position(r['id'])
-            filtered['changetime'] = to_utimestamp(r['changetime'])
+            filtered['_changetime'] = to_utimestamp(r['changetime'])
+            # we use Trac's to_json() (through add_script_data), so
+            # we'll replace any types which can't be json serialised
+            for k, v in filtered.items():
+                if isinstance(v, datetime): filtered[k] = pretty_age(v)
             filtered['actions'] = self._get_status_actions(req, op, wf, state)
             # Collect all actions requiring further input
             self._update_controls(req, act_controls, filtered['actions'], tkt)

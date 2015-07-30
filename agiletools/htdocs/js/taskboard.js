@@ -594,7 +594,7 @@
             "__FORM_TOKEN": window.formToken,
             "group_name": this.groupBy,
             "ticket": ticket.id,
-            "ts": ticket.tData.changetime
+            "ts": ticket.tData._changetime
           };
 
       $.extend(data, newData);
@@ -748,7 +748,7 @@
                   }
 
                   // If we have, and we didn't previously know about this update
-                  else if(existingTicket.tData.changetime != ticketData.changetime) {
+                  else if(existingTicket.tData._changetime != ticketData._changetime) {
                     existingTicket.update(ticketData, byUser, newGroup);
                   }
                 }
