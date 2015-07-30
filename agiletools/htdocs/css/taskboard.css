@@ -16,10 +16,18 @@
   padding:8px 25px 10px;
   border-radius:20px;
 }
-#taskboard-query .select2-container { width:210px; }
 
 .popover-groups {
   width: 236px;
+}
+
+.popover-fields {
+  width: 500px;
+}
+@media (max-width:500px) {
+    .popover-fields {
+	width: 100%;
+    }
 }
 
 #set-groups-clear {
@@ -64,6 +72,7 @@
   border:1px solid #555;
   border-radius:5px;
 }
+
 #taskboard th .group-count {
   border-radius:5px;
   font-size: 80%;
@@ -294,16 +303,11 @@ body.fullscreen #taskboard-controls {
   position: relative;
 }
 
+#taskboard-action-wrapper form select {
+  width: 200px;
+}
+
 .fullscreen #taskboard-action-wrapper {
   position: static;
 }
 
-#mods-columns {
-  position: absolute;
-}
-
-#mods-columns label {
-  display: inline-block;
-  padding: 0 50px 10px 0;
-  width: 205px;
-}

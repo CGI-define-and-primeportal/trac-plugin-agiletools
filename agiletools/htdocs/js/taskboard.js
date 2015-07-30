@@ -42,9 +42,8 @@
         workflows = taskboard.get_workflows();
         if(workflows.length > 1) show_workflow_controls(workflows);
       }
-
+      $("#mods-columns").show();
       $("#taskboard-controls").addClass("visible");
-      $("#btn-stat-fields").on("click", event_toggle_stat_fields);
       $("#btn-switch-view").on("click", event_toggle_condensed);
       $("#btn-fullscreen").on("click", event_toggle_fullscreen);
     }
@@ -53,6 +52,7 @@
     }
 
     event_change_query();
+    createColumnSelection($("#mods-columns"));
 
     // TICKET DIALOG
     // =============
@@ -156,7 +156,7 @@
         $("#default-query-form input[name='milestone']").val(milestone);
         $("#default-query-form input[name='group']").val(group);
         // find the checked inputs in the display fields node
-        var col = $("#mods-columns input:checked").map(function(i,el){return el.value;}).get()
+        var col = $("#mods-columns select").val()
         $("#default-query-form input[name='col']").val(col);
         var view = $("#content").hasClass("view-condensed") ? "condensed" : "expanded";
         $("#default-query-form input[name='view']").val(view)
@@ -1007,6 +1007,8 @@
         this.$elHead.append("<img class='hidden-phone group-avatar' src='" + avatar + "' a />");
       }
 
+      this.$elHead.append("<div class='group-name'>" + this.get_visual_name() + "</div>");
+
       this.countClasses = "group-count hidden-phone";
       this.$elHead.append("<div class='" + this.countClasses + "'>" +
 			  "<i class='fa fa-ticket'></i> <span class='tickets'></span>" +
@@ -1015,7 +1017,6 @@
 			  "</div>");
 
       
-      this.$elHead.append("<div class='group-name'>" + this.get_visual_name() + "</div>");
       $("thead tr", this.taskboard.$el).append(this.$elHead);
     },
 
@@ -1601,39 +1602,23 @@
   function event_change_query() {
     var allOptions = {
           allowClear: false,
-          width: "off",
+          width: "element",
           containerCssClass: "block-phone"
         },
         milestones = $.extend({ "data": window.milestones }, allOptions);
 
-    $("#taskboard-query select").select2(allOptions);
+    $("#taskboard-query select[name='group']").select2(allOptions);
     $("#tb-milestones-select").select2(milestones);
     $("#taskboard-query select, #tb-milestones-select").on("change", function() {
       $(this).parent().submit();
     });
+    $("#mods-columns select").on("change", function() {
+      $("#btn-update-taskboard").removeClass("btn-primary").addClass("btn-info");
+    });
     $("#btn-update-taskboard").on("click", function() {
+      $("select[name='col']").appendTo("#taskboard-query");
       $("#taskboard-query").submit();
     });
-  }
-
-
-  /**
-   * Toggle the visibility of the ticket field check button container.
-   */
-  function event_toggle_stat_fields() {
-
-    $("#mods-columns").toggle();
-
-    // it would be better to use a class which adds margin-top and then 
-    // toggle that class, but as the value for this property is 
-    // computed at run-time I've opted for this approach
-    if ($("#mods-columns").is(":visible")) {
-      $("#taskboard").css("margin-top", 
-        ($("#mods-columns").outerHeight() + 20).toString() + "px");
-    } else {
-      $("#taskboard").css("margin-top", "10px");
-    }
-
   }
 
   /**
@@ -1703,6 +1688,10 @@
 
     $("#btn-change-workflow").popoverWith("#popover-workflows", {
       title: "Choose workflow"
+    });
+
+    $("#btn-stat-fields").popoverWith("#popover-fields", {
+      title: "Choose fields"
     });
   }
 

@@ -38,7 +38,7 @@ class TaskboardModule(Component):
             doc="""fields whose values represent users, separated by ',')"""
             )
     default_display_fields = ListOption("taskboard", "display_fields",
-            default="type, owner, priority",
+            default="type, owner, priority, remaininghours, effort",
             doc="""fields displayed inside ticket nodes on taskboard"""
             )
 
@@ -163,6 +163,7 @@ class TaskboardModule(Component):
                     'milestones': milestones,
                     'milestone': milestone,
                     'group': group_by,
+                    'default_columns': self.default_display_fields
                 })
                 data.update({
                     'milestone_not_found': milestone_not_found,
@@ -176,6 +177,7 @@ class TaskboardModule(Component):
 
                 add_script(req, 'agiletools/js/update_model.js')
                 add_script(req, 'agiletools/js/taskboard.js')
+                add_script(req, 'common/js/query.js')
                 add_script_data(req, s_data)
 
                 add_stylesheet(req, 'agiletools/css/taskboard.css')
