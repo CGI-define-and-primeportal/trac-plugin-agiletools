@@ -24,22 +24,23 @@
           <xi:include href="column_filter.html" />
         </form>
         <div id="taskboard-controls" class="hidden inline-block">
+          <div id="btn-switch-view" class="btn btn-mini tooltipped" title="Toggle details">
+            <i class="fa fa-th"></i><span class="visible-desktop">  Toggle details</span>
+          </div>
+          <div id="btn-fullscreen" class="btn btn-mini tooltipped" title="Toggle Fullscreen">
+            <i class="fa fa-arrows-alt"></i><span class="visible-desktop">  Toogle Fullscreen</span>
+          </div>
           <div py:if="cur_group == 'status'"
-               id="btn-change-workflow" class="btn btn-primary tooltipped" title="Change workflow">
-            <i class="fa x-fa-workflow"></i>
+               id="btn-change-workflow" class="btn btn-mini tooltipped" title="Choose workflow to display">
+            <i class="fa x-fa-workflow"></i><span class="visible-desktop"> Choose workflow</span>
           </div>
-          <div id="btn-groups-filter" class="btn tooltipped" title="Filter groups"
+          <div id="btn-groups-filter" class="btn btn-mini tooltipped" title="Choose columns to display"
                data-class="popover-groups">
-            <i class="fa fa-eye"></i>
+            <i class="fa fa-columns"></i><span class="visible-desktop"> Choose columns</span>
           </div>
-          <div id="btn-switch-view" class="btn tooltipped" title="Switch view">
-            <i class="fa fa-th"></i>
-          </div>
-          <div id="btn-stat-fields" class="btn tooltipped" title="Select ticket fields to display">
-            <i class="fa fa-align-left"></i>
-          </div>
-          <div id="btn-fullscreen" class="btn tooltipped" title="Toggle fullscreen">
-            <i class="fa fa-arrows-alt"></i>
+          <div id="btn-stat-fields" class="btn btn-mini tooltipped" title="Select ticket fields to display"
+	       data-class="popover-fields">
+            <i class="fa fa-database"></i><span class="visible-desktop">  Choose fields</span>
           </div>
           <div id="popover-elements" class="hidden">
             <div id="popover-groups">
