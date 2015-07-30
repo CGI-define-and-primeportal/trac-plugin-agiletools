@@ -309,7 +309,7 @@ class TaskboardModule(Component):
                 return True
             if req.args['view'] == 'expanded':
                 return False
-        elif 'field' in req.args:
+        elif 'col' in req.args:
             return set(self._get_display_fields(req)) == set(self.default_display_fields)
         else:
             return True
