@@ -183,7 +183,7 @@ class TaskboardModule(Component):
                 add_ctxtnav(req, tag.a(tag.i(class_='fa fa-bookmark'),
                                        _(" Set as default"),
                                        id_='set-default-query',
-                                       title=_("Make this your default query")))
+                                       title=_("Make this your default taskboard")))
                 return "taskboard.html", data, None
 
     def _get_permitted_tickets(self, req, constraints=None, columns=None):

@@ -1702,7 +1702,7 @@
       });
 
     $("#btn-change-workflow").popoverWith("#popover-workflows", {
-      title: "Change workflow"
+      title: "Choose workflow"
     });
   }
 
