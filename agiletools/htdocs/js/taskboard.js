@@ -1703,8 +1703,8 @@
                          "<i class='fa fa-info-circle'></i> " +
                          "The taskboard has been automatically filtered to show " +
                          "only the group with the most results. Click the " +
-                         "<span class='filtered-option pointer'>filtered groups " +
-                         "option</span> to configure." +
+                         "<span class='filtered-option pointer'>Choose columns " +
+                         "button</span> to configure." +
                          "<button type='button' class='close btn btn-mini'>" +
                          "<i class='fa fa-times'></i>" +
                          "</button>" +
