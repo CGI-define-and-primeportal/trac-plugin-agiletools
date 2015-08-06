@@ -1011,11 +1011,10 @@
 
       this.countClasses = "group-count hidden-phone";
       this.$elHead.append("<div class='" + this.countClasses + "'>" +
-			  "<i class='fa fa-ticket'></i> <span class='tickets'></span>" +
-			  "<i class='margin-left-small fa fa-bars'></i> <span class='effort'></span>" +
-			  "<i class='margin-left-small fa fa-clock-o'></i> <span class='hours'></span>" +
+			  "<span title='Ticket count' class='tooltipped'><i class='fa fa-ticket'></i> <span class='tickets'></span></span>" +
+			  "<span title='Story Points' class='tooltipped'><i class='margin-left-small fa fa-bars'></i> <span class='effort'></span></span>" +
+			  "<span title='Estimated Remaining Hours' class='tooltipped'><i class='margin-left-small fa fa-clock-o'></i> <span class='hours'></span></span>" +
 			  "</div>");
-
       
       $("thead tr", this.taskboard.$el).append(this.$elHead);
     },

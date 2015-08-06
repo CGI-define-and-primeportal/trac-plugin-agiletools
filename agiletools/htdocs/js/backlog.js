@@ -671,10 +671,12 @@
         storypoints = this.total_storypoints;
       }
       this.$stats.html(
-        "<i class='fa fa-ticket'></i> " + tickets +
-        "<i class='margin-left-small fa fa-bars'></i> " + storypoints +
-        "<i class='margin-left-small fa fa-clock-o'></i> " + pretty_time(hours)
+        "<span title='Ticket count'><i class='fa fa-ticket'></i> " + tickets + "</span>" +
+        "<span title='Story Points'><i class='margin-left-small fa fa-bars'></i> " + storypoints + "</span>" +
+        "<span title='Estimated Remaining Hours'><i class='margin-left-small fa fa-clock-o'></i> " + pretty_time(hours) + "</span>"
       );
+      // need to put it at the bottom, otherwise gets a 'top' class, which conflicts CSS with our .top already.
+      this.$stats.find('span').tooltip({placement:"bottom"});
     },
 
     /**
