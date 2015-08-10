@@ -1654,6 +1654,8 @@
     }
 
     $filterSelect.select2({
+      placeholder: "Click to select columns",
+      width: "element",
       maximumSelectionSize:20
     });
 
