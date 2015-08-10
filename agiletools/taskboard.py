@@ -194,10 +194,12 @@ class TaskboardModule(Component):
         defaults to the first seven colums - see get_default_columns().
         """
 
-        # make sure that we get certain ticket fields
         if columns is None:
             columns = []
-        for f in ('summary', 'type', 'remaininghours', 'effort'):
+        else:
+            columns = columns[:] # avoid mutating callers list
+        # make sure that we get certain ticket fields
+        for f in ('summary', 'type', 'remaininghours', 'effort', 'date'):
             if f not in columns:
                 columns.append(f)
 
