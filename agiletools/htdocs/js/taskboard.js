@@ -1601,7 +1601,7 @@
   function event_change_query() {
     var allOptions = {
           allowClear: false,
-          width: "element",
+          width: "200px",
           containerCssClass: "block-phone"
         },
         milestones = $.extend({ "data": window.milestones }, allOptions);
