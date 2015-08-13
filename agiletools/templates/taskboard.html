@@ -46,9 +46,18 @@
           </div>
           <div id="popover-elements" class="hidden">
             <div id="popover-groups">
-              <a id="set-groups-clear">
-                <i class="fa fa-times"></i> Remove all
-              </a>
+	      <div id="set-groups-buttons">
+		<a id="set-groups-clear">
+		  <button type="button" class="btn btn-mini btn-primary">
+		    <i class="fa fa-trash-o fa-inverse"></i> Remove all
+		  </button>
+		</a>
+		<a id="set-groups-add">
+		  <button type="button" class="btn btn-mini btn-primary">
+		    <i class="fa fa-plus fa-inverse"></i> Add column
+		  </button>
+		</a>
+	      </div>
               <select id="set-groups-select" multiple="multiple"></select>
             </div>
             <div py:if="cur_group == 'status'" id="popover-workflows">

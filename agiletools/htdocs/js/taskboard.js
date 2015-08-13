@@ -1602,6 +1602,7 @@
     var allOptions = {
           allowClear: false,
           width: "200px",
+          closeOnSelect: false,
           containerCssClass: "block-phone"
         },
         milestones = $.extend({ "data": window.milestones }, allOptions);
@@ -1656,7 +1657,15 @@
     $filterSelect.select2({
       placeholder: "Click to select columns",
       width: "element",
-      maximumSelectionSize:20
+      closeOnSelect: false,
+      maximumSelectionSize:20,
+      formatNoMatches: function(term) {
+        if (term.length) {
+          return "Matching column not found";
+        } else {
+          return "All columns already selected";
+        }
+      },
     });
 
     $filterSelect.on("change", function(e) {
@@ -1667,6 +1676,9 @@
     $("#set-groups-clear").on("click", function() {
       $filterSelect.select2("val", "");
       taskboard.filter_groups([]);
+    });
+    $("#set-groups-add").on("click", function() {
+      $filterSelect.select2("open");
     });
   }
 

@@ -30,10 +30,11 @@
     }
 }
 
-#set-groups-clear {
+#set-groups-buttons {
   margin-bottom:5px;
   display:block;
 }
+
 #set-groups-clear:hover { text-decoration: none; }
 #filtered-notification { margin: 8px 0 0; }
 #filtered-note .close { float: right; }
