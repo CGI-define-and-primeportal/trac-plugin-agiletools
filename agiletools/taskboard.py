@@ -213,6 +213,8 @@ class TaskboardModule(Component):
                         ticket[k] = float(ticket[k])
                     except KeyError:
                         pass
+                    except TypeError:
+                        ticket[k] = 0.0
                 tickets.append(ticket)
         return tickets
 
