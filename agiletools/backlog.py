@@ -265,7 +265,7 @@ class BacklogModule(Component):
                 ticket.save_changes(req.authname, "", when=datetime.now(utc))
 
     def _get_permitted_tickets(self, req, constraints=None):
-        qry = Query(self.env, constraints=constraints, cols=self.fields, max=0)
+        qry = Query(self.env, constraints=constraints, cols=self.fields, max=0, order="_dynamic")
         return [ticket for ticket in qry.execute(req)
                 if 'TICKET_VIEW' in req.perm('ticket', ticket['id'])]
 
