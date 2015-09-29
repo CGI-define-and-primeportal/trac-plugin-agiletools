@@ -1,7 +1,6 @@
 from agiletools.api import AgileToolsSystem
 
-from trac.core import Component, implements, TracError
-from trac.db.api import with_transaction
+from trac.core import Component, implements
 from trac.resource import ResourceNotFound
 from trac.web import IRequestHandler, IRequestFilter
 from trac.web.chrome import (ITemplateProvider, add_script, add_stylesheet,
