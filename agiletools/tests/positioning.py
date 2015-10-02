@@ -1,5 +1,6 @@
 import unittest
 import random
+from trac.core import Component, implements
 from trac.test import EnvironmentStub, Mock
 
 from agiletools.api import AgileToolsSystem

@@ -5,7 +5,8 @@
 
 from datetime import datetime
 
-from trac.core import Component, implements, TracError
+from trac.web.api import ITemplateStreamFilter, IRequestFilter
+from trac.core import Component, implements, TracError, Interface, ExtensionPoint
 from trac.db import DatabaseManager
 from trac.env import IEnvironmentSetupParticipant
 from trac.util.datefmt import to_utimestamp, utc
