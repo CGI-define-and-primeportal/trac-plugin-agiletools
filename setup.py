@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013 CGI IT UK Ltd
+# Copyright (C) 2015 CGI
 
 from setuptools import setup
 
@@ -10,6 +10,11 @@ setup(
     description='Implements an Agile style task board and backlog manager',
     author="Ian Clark",
     author_email="ian.clark@cgi.com",
+    maintainer="CGI CoreTeam",
+    maintainer_email="coreteam.service.desk.se@cgi.com",
+    contact="CGI CoreTeam",
+    contact_email="coreteam.service.desk.se@cgi.com",
+    classifiers=['License :: OSI Approved :: BSD License'],
     license='BSD',
     url='http://define.primeportal.com/',
     packages=[
